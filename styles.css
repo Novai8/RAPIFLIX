@@ -131,3 +131,36 @@ html[data-page=trending] #movieGrid .movie-card:nth-child(n+11) { display: block
 @media (max-width: 760px) {
   html[data-page=trending] #movieGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 13px; }
 }
+
+
+/* Cross-site promotion: compact, readable and responsive in the header. */
+.cross-site-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--btn) 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--btn) 12%, var(--bg));
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: transform .25s var(--ease), background .25s ease, border-color .25s ease;
+}
+.cross-site-cta span { color: var(--btn); font-size: 15px; }
+.cross-site-cta:hover {
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--btn) 24%, var(--bg));
+  border-color: var(--btn);
+}
+@media (max-width: 760px) {
+  .cross-site-cta { min-height: 36px; padding: 0 10px; font-size: 11px; }
+  .header-actions { gap: 7px; }
+}
+@media (max-width: 460px) {
+  .cross-site-cta { font-size: 10px; gap: 4px; padding: 0 8px; }
+  .header-actions { flex-wrap: wrap; justify-content: flex-end; }
+}
