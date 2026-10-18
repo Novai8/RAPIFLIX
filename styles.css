@@ -287,3 +287,23 @@ html[data-page=search] #movieGrid .movie-card {
     transition: none !important;
   }
 }
+
+
+/* Keep the header and autocomplete above the animated hero artwork. */
+.site-header {
+  position: relative !important;
+  z-index: 10020 !important;
+  isolation: isolate;
+}
+.site-header .header-actions {
+  position: relative;
+  z-index: 10021;
+}
+.site-header .search-wrap {
+  position: relative;
+  z-index: 10022;
+  overflow: visible;
+}
+.site-header .search-suggestions {
+  z-index: 10023;
+}
