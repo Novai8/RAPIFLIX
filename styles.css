@@ -83,3 +83,51 @@ html.cc, html.cc * { cursor: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .cursor-dot, .cursor-ring { transition-duration: .01ms !important; }
 }
+
+
+/* Rapiflix catalogue refresh: readable filters, a real poster grid, and no obsolete classics row. */
+.section-tools select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 44px;
+  padding: 11px 42px 11px 15px;
+  border: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
+  border-radius: 13px;
+  color: var(--fg);
+  background-color: color-mix(in srgb, var(--bg) 82%, #808080 18%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23b9bdc8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  box-shadow: 0 5px 18px #00000012;
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+.section-tools select:hover,
+.section-tools select:focus-visible {
+  border-color: var(--btn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--btn) 18%, transparent);
+}
+.section-tools select option { color: #f1f3f8; background: #11141d; }
+html[data-theme=light] .section-tools select option { color: #151722; background: #fff; }
+html[data-page=trending] #movieGrid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  gap: 28px 18px;
+  overflow: visible;
+  padding: 8px 0 30px;
+  scroll-snap-type: none;
+}
+html[data-page=trending] #movieGrid .movie-card {
+  flex: initial;
+  min-width: 0;
+  scroll-snap-align: unset;
+}
+html[data-page=trending] #movieGrid .movie-card::before { content: none !important; }
+html[data-page=trending] #movieGrid .movie-card:nth-child(n+11) { display: block; }
+.load-row:has(#loadMoreTmdb) { display: none !important; }
+#catalogSection > .free-catalog-heading,
+#freeMovieGrid,
+#freeMovieGrid + .load-row { display: none !important; }
+.tmdb-status { max-width: 100%; line-height: 1.5; }
+@media (max-width: 760px) {
+  html[data-page=trending] #movieGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 13px; }
+}
