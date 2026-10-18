@@ -10,6 +10,11 @@
   let activeGenre = 'all', activeEra = '2000-2026', query = '', sortNewest = false, showingSaved = false, extraPage = 1, selected = catalog[0], heroIndex = 0;
   let currentTmdbEndpoint = 'trending/movie/week', currentTmdbLabel = 'Trending 2000–2026', currentTmdbPage = 1, currentTmdbTotalPages = 1, currentTmdbParams = { 'primary_release_date.gte': '2000-01-01', 'primary_release_date.lte': '2026-12-31', sort_by: 'popularity.desc' };
   let autoLoadingMore = false;
+  let lastUserScrollAt = 0;
+  let autoLoadArmed = true;
+  window.addEventListener('wheel',()=>{lastUserScrollAt=Date.now();},{passive:true});
+  window.addEventListener('touchmove',()=>{lastUserScrollAt=Date.now();},{passive:true});
+  window.addEventListener('keydown',e=>{if(['ArrowDown','PageDown',' ','End'].includes(e.key))lastUserScrollAt=Date.now();});
   const tmdbKeyName = 'rapiflix-tmdb-key';
   let tmdbGenreMap = {}, tmdbTvGenreMap = {};
   let licensedStreams = {};
@@ -743,9 +748,15 @@
     }finally{autoLoadingMore=false;}
   }
   window.addEventListener('scroll',()=>{
-    if(autoLoadingMore||currentTmdbPage>=currentTmdbTotalPages)return;
-    if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-1000){
-      autoLoadingMore=true;loadMoreTmdb(true).finally(()=>{autoLoadingMore=false;});
+    const remaining=document.documentElement.scrollHeight-(window.innerHeight+window.scrollY);
+    if(remaining>1700)autoLoadArmed=true;
+    if(autoLoadingMore||!autoLoadArmed||currentTmdbPage>=currentTmdbTotalPages)return;
+    // Only paginate in response to a real user scroll, not layout changes caused by filtering/rendering.
+    if(Date.now()-lastUserScrollAt>1200)return;
+    if(remaining<=850){
+      autoLoadArmed=false;
+      autoLoadingMore=true;
+      loadMoreTmdb(true).finally(()=>{autoLoadingMore=false;});
     }
   },{passive:true});
   renderChips();updateHero(0);render();
