@@ -8,6 +8,8 @@
   const featuredIds = [];
   const genres = ['All','Comedy','Thriller','Adventure','Noir','Sci-Fi','Horror','Animation','Drama','Family','Mystery','Action'];
   let activeGenre = 'all', activeEra = '2000-2026', query = '', sortNewest = false, showingSaved = false, extraPage = 1, selected = catalog[0], heroIndex = 0;
+  let tmdbSearchResults = [], archiveSearchResults = [];
+  let tmdbSearchSequence = 0, archiveSearchSequence = 0, catalogLoadSequence = 0;
   let currentTmdbEndpoint = 'trending/movie/week', currentTmdbLabel = 'Trending 2000–2026', currentTmdbPage = 1, currentTmdbTotalPages = 1, currentTmdbParams = { 'primary_release_date.gte': '2000-01-01', 'primary_release_date.lte': '2026-12-31', sort_by: 'popularity.desc' };
   let autoLoadingMore = false;
   let lastUserScrollAt = 0;
@@ -67,7 +69,9 @@
     host.innerHTML=Array.from({length:12},()=>'<div class="loading-card" aria-hidden="true"><div class="loading-poster"></div><div class="loading-line"></div><div class="loading-line short"></div></div>').join('');
     $('#resultsCount').textContent='LOADING…';
   }
-  async function loadTmdb(endpoint,label){
+  async function loadTmdb(endpoint,label,requestId=++catalogLoadSequence){
+    const queryAtStart=query.trim();
+    const inputAtStart=$('#searchInput').value.trim();
     currentTmdbEndpoint=endpoint;currentTmdbLabel=label||'TMDB';currentTmdbPage=1;
     const isAnime=endpoint==='anime';
     currentTmdbParams=endpoint==='discover/movie'
@@ -76,12 +80,13 @@
         ? {'first_air_date.gte':'2000-01-01','first_air_date.lte':'2026-12-31',sort_by:sortNewest?'first_air_date.desc':'popularity.desc','vote_count.gte':5}
         : {};
     setTmdbStatus('Loading '+(isAnime?'anime films and series':currentTmdbLabel)+'…');
-    showCatalogLoading();
+    if(!query.trim())showCatalogLoading();
     const moreButton=$('#loadMoreTmdb');if(moreButton){moreButton.disabled=true;moreButton.textContent='Loading catalogue…';}
     try{
       const [movieGenreResponse,tvGenreResponse]=await Promise.all([tmdbRequest('genre/movie/list',{language:'en-US'}),tmdbRequest('genre/tv/list',{language:'en-US'})]);
       if(movieGenreResponse.ok){const d=await movieGenreResponse.json();(d.genres||[]).forEach(g=>tmdbGenreMap[g.id]=g.name);}
       if(tvGenreResponse.ok){const d=await tvGenreResponse.json();(d.genres||[]).forEach(g=>tmdbTvGenreMap[g.id]=g.name);}
+      if(requestId!==catalogLoadSequence)return;
       document.querySelectorAll('[data-tmdb]').forEach(btn=>btn.classList.toggle('active',btn.dataset.tmdb===endpoint));
       let fresh=[],totalPages=1;
       if(isAnime){
@@ -99,17 +104,28 @@
         fresh=(data.results||[]).filter(m=>m&&m.id).map(m=>mapTmdbMovie(m,currentTmdbLabel,endpoint==='discover/tv'||endpoint.includes('/tv')?'tv':'movie'));
         totalPages=Number(data.total_pages)||1;
       }
+      if(requestId!==catalogLoadSequence)return;
       fresh=fresh.filter(m=>m.year>=2000&&m.year<=2026);
+      const searchChangedDuringLoad=query.trim()!==queryAtStart||$('#searchInput').value.trim()!==inputAtStart;
       for(let i=catalog.length-1;i>=0;i--)if(catalog[i].kind==='tmdb')catalog.splice(i,1);
       catalog.unshift(...fresh);currentTmdbTotalPages=Math.min(totalPages,500);
-      if(fresh.length){featuredIds.splice(0,featuredIds.length,...fresh.slice(0,4).map(m=>m.id));heroIndex=0;updateHero(0);}
-      activeGenre='all';activeEra='2000-2026';showingSaved=false;query='';$('#searchInput').value='';$('#genreFilter').value='all';$('#eraFilter').value=activeEra;renderChips();render();
-      setTmdbStatus('Loaded '+fresh.length+' '+(isAnime?'anime films and series':endpoint==='discover/tv'?'TV series':'films')+'. '+(currentTmdbPage<currentTmdbTotalPages?'Load more to continue browsing.':'No further pages available.'));
-    }catch(error){setTmdbStatus('Catalogue unavailable: '+error.message+'. Check the TMDB server secret and redeploy if this is the live site.');render();console.error(error);}
-    finally{if(moreButton){moreButton.disabled=false;moreButton.textContent=currentTmdbPage<currentTmdbTotalPages?'Load more · '+currentTmdbLabel:'Catalogue page limit reached';moreButton.disabled=currentTmdbPage>=currentTmdbTotalPages;}}
+      if(fresh.length){featuredIds.splice(0,featuredIds.length,...fresh.slice(0,4).map(m=>m.id));heroIndex=0;if(!searchChangedDuringLoad)updateHero(0);}
+      if(!searchChangedDuringLoad){
+        activeGenre='all';activeEra='2000-2026';showingSaved=false;query='';$('#searchInput').value='';
+        tmdbSearchResults=[];archiveSearchResults=[];
+        $('#genreFilter').value='all';$('#eraFilter').value=activeEra;renderChips();
+      }
+      render();
+      if(!searchChangedDuringLoad)setTmdbStatus('Loaded '+fresh.length+' '+(isAnime?'anime films and series':endpoint==='discover/tv'?'TV series':'films')+'. '+(currentTmdbPage<currentTmdbTotalPages?'Load more to continue browsing.':'No further pages available.'));
+    }catch(error){
+      if(requestId!==catalogLoadSequence)return;
+      if(query.trim()===queryAtStart&&$('#searchInput').value.trim()===inputAtStart){setTmdbStatus('Catalogue unavailable: '+error.message+'. Check the TMDB server secret and redeploy if this is the live site.');render();}
+      console.error(error);
+    }
+    finally{if(requestId===catalogLoadSequence&&moreButton){moreButton.disabled=false;moreButton.textContent=currentTmdbPage<currentTmdbTotalPages?'Load more · '+currentTmdbLabel:'Catalogue page limit reached';moreButton.disabled=currentTmdbPage>=currentTmdbTotalPages;}}
   }
-  async function loadMoreTmdb(silent=false){
-    if(currentTmdbPage>=currentTmdbTotalPages)return;
+  async function loadMoreTmdb(silent=false,requestId=catalogLoadSequence){
+    if(requestId!==catalogLoadSequence||currentTmdbPage>=currentTmdbTotalPages)return;
     const btn=$('#loadMoreTmdb');btn.disabled=true;btn.textContent='Loading more…';
     try{
       const next=currentTmdbPage+1;let fresh=[],totalPages=currentTmdbTotalPages;
@@ -127,24 +143,26 @@
         const data=await response.json();if(!response.ok)throw new Error(data.status_message||data.error||'Could not load the next page');
         fresh=(data.results||[]).map(m=>mapTmdbMovie(m,currentTmdbLabel,currentTmdbEndpoint==='discover/tv'||currentTmdbEndpoint.includes('/tv')?'tv':'movie'));totalPages=Number(data.total_pages)||totalPages;
       }
+      if(requestId!==catalogLoadSequence)return;
       fresh=fresh.filter(m=>m.year>=2000&&m.year<=2026);
       const existing=new Set(catalog.filter(m=>m.kind==='tmdb').map(m=>m.id));fresh=fresh.filter(m=>!existing.has(m.id));
       catalog.push(...fresh);currentTmdbPage=next;currentTmdbTotalPages=Math.min(totalPages,500);render();
       setTmdbStatus('Showing '+catalog.filter(m=>m.kind==='tmdb').length+' results. Page '+currentTmdbPage+' of '+currentTmdbTotalPages+' · '+currentTmdbLabel+'.');
       if(fresh.length&&!silent)toast('Added '+fresh.length+' more titles');
-    }catch(error){setTmdbStatus('Could not load more titles: '+error.message);toast('Catalogue page failed to load');}
-    finally{btn.disabled=currentTmdbPage>=currentTmdbTotalPages;btn.textContent=btn.disabled?'Catalogue page limit reached':'Load more · '+currentTmdbLabel;}
+    }catch(error){if(requestId!==catalogLoadSequence)return;setTmdbStatus('Could not load more titles: '+error.message);toast('Catalogue page failed to load');}
+    finally{if(requestId===catalogLoadSequence){btn.disabled=currentTmdbPage>=currentTmdbTotalPages;btn.textContent=btn.disabled?'Catalogue page limit reached':'Load more · '+currentTmdbLabel;}}
   }
   async function searchTmdb(text){
-    if(!text.trim())return;
+    const term=String(text||'').trim();
+    if(term.length<2)return;
+    const requestId=++tmdbSearchSequence;
     try{
-      const response=await tmdbRequest('search/multi',{query:text.trim(),language:'en-US',region:'PK',include_adult:'false'});
+      const response=await tmdbRequest('search/multi',{query:term,language:'en-US',region:'PK',include_adult:'false'});
       const data=await response.json();if(!response.ok)throw new Error(data.status_message||data.error||'Search failed');
-      if(query.trim()!==text.trim())return;
-      const fresh=(data.results||[]).filter(m=>m&&m.id&&['movie','tv'].includes(m.media_type)).map(m=>mapTmdbMovie(m,'SEARCH RESULT',m.media_type)).filter(m=>m.year>=2000&&m.year<=2026);
-      for(let i=catalog.length-1;i>=0;i--)if(catalog[i].kind==='tmdb')catalog.splice(i,1);
-      catalog.unshift(...fresh);render();setTmdbStatus('Search results include films and TV series. Select a title for official watch options.');
-    }catch(error){setTmdbStatus('Search unavailable: '+error.message);console.error(error);}
+      if(requestId!==tmdbSearchSequence||query.trim()!==term)return;
+      tmdbSearchResults=(data.results||[]).filter(m=>m&&m.id&&['movie','tv'].includes(m.media_type)).map(m=>mapTmdbMovie(m,'SEARCH RESULT',m.media_type)).filter(m=>m.year>=2000&&m.year<=2026);
+      render();setTmdbStatus('Search results include films and TV series. Select a title for official watch options.');
+    }catch(error){if(requestId!==tmdbSearchSequence||query.trim()!==term)return;setTmdbStatus('Search unavailable: '+error.message);console.error(error);}
   }
   let saved = new Set();
   try { saved = new Set(JSON.parse(localStorage.getItem('rapiflix-saved') || '[]')); } catch (_) {}
@@ -157,7 +175,9 @@
   function posterMarkup(m){return `<div class="poster-wrap" style="background:${fallbackGradients[Math.abs(m.title.length)%fallbackGradients.length]}"><div class="poster-fallback"><div><span>${m.kind==='tmdb'?'MOVIE DISCOVERY':'FREE FILM LIBRARY'}</span>${escapeHtml(m.title)}</div></div><img loading="lazy" src="${escapeHtml(imageUrl(m))}" alt="Poster for ${escapeHtml(m.title)}" onerror="this.style.display='none'" onload="this.previousElementSibling.style.display='none'"><div class="poster-overlay"></div><span class="poster-badge">${escapeHtml(m.tag||'ARCHIVE PICK')}</span><button class="save-card ${saved.has(m.id)?'saved':''}" data-save="${escapeHtml(m.id)}" aria-label="${saved.has(m.id)?'Remove from':'Save to'} my list">${saved.has(m.id)?'♥':'♡'}</button><button class="card-play" data-details="${escapeHtml(m.id)}" aria-label="View ${escapeHtml(m.title)}">▶</button></div>`;}
   function render(){
     const needle=query.trim().toLowerCase();
-    const matches=catalog.filter(m=>(m.year>=2000&&m.year<=2026)&&(activeGenre==='all'||m.genres.some(g=>g.toLowerCase()===activeGenre.toLowerCase()))&&(activeEra==='all'||(activeEra==='2000-2026'?m.year>=2000&&m.year<=2026:activeEra==='2000s'?m.year>=2000&&m.year<=2009:activeEra==='2010s'?m.year>=2010&&m.year<=2019:activeEra==='2020s'?m.year>=2020&&m.year<=2026:activeEra==='latest'?m.year>=new Date().getFullYear()-1:m.year>0&&m.year<2000))&&(!needle||`${m.title} ${m.year} ${m.genres.join(' ')} ${m.desc}`.toLowerCase().includes(needle))&&(!showingSaved||saved.has(m.id)));
+    const searchPool=needle?[...catalog,...tmdbSearchResults,...archiveSearchResults]:catalog;
+    const searchableCatalog=needle?[...new Map(searchPool.map(m=>[m.id,m])).values()]:catalog;
+    const matches=searchableCatalog.filter(m=>(m.year>=2000&&m.year<=2026)&&(activeGenre==='all'||m.genres.some(g=>g.toLowerCase()===activeGenre.toLowerCase()))&&(activeEra==='all'||(activeEra==='2000-2026'?m.year>=2000&&m.year<=2026:activeEra==='2000s'?m.year>=2000&&m.year<=2009:activeEra==='2010s'?m.year>=2010&&m.year<=2019:activeEra==='2020s'?m.year>=2020&&m.year<=2026:activeEra==='latest'?m.year>=new Date().getFullYear()-1:m.year>0&&m.year<2000))&&(!needle||`${m.title} ${m.year} ${m.genres.join(' ')} ${m.desc}`.toLowerCase().includes(needle))&&(!showingSaved||saved.has(m.id)));
     let discovery=matches.filter(m=>m.kind==='tmdb');
     let freeFilms=matches.filter(m=>m.kind!=='tmdb');
     if(sortNewest){discovery=discovery.slice().sort((a,b)=>b.year-a.year);freeFilms=freeFilms.slice().sort((a,b)=>b.year-a.year);}
@@ -676,9 +696,11 @@
     const term=String(text||'').trim();
     if(term.length<2)return;
     const cacheKey=term.toLowerCase();
+    const requestId=++archiveSearchSequence;
+    const isCurrentSearch=()=>requestId===archiveSearchSequence&&query.trim().toLowerCase()===cacheKey;
     if(archiveSearchCache.has(cacheKey)){
-      const cached=archiveSearchCache.get(cacheKey);
-      for(const m of cached)if(!byId(m.id))catalog.unshift(m);
+      if(!isCurrentSearch())return;
+      archiveSearchResults=archiveSearchCache.get(cacheKey);
       render();return;
     }
     setTmdbStatus('Searching for full films with declared rights and playable files…');
@@ -692,14 +714,15 @@
       const response=await fetch(url);
       if(!response.ok)throw new Error('Internet Archive search did not respond');
       const data=await response.json();
-      if(query.trim().toLowerCase()!==cacheKey)return;
+      if(!isCurrentSearch())return;
       const found=await licensedPlayableArchiveDocs(data.response?.docs||[],'ARCHIVE SEARCH');
-      if(query.trim().toLowerCase()!==cacheKey)return;
+      if(!isCurrentSearch())return;
       archiveSearchCache.set(cacheKey,found);
-      for(const m of found)if(!byId(m.id))catalog.unshift(m);
+      archiveSearchResults=found;
       render();
       setTmdbStatus(found.length?'Found '+found.length+' Archive title(s) with a compatible file and declared rights.':'No matching Archive titles passed the rights and playback check. Try a shorter title or another film.');
     }catch(error){
+      if(!isCurrentSearch())return;
       setTmdbStatus('Archive search error: '+(error.message||'Could not search the source collection.'));
     }
   }
@@ -741,16 +764,18 @@
     finally{btn.disabled=false;btn.innerHTML='Explore more classics <span>↗</span>';}
   }
   async function loadAndFill(endpoint,label){
+    const requestId=++catalogLoadSequence;
     autoLoadingMore=true;
     try{
-      await loadTmdb(endpoint,label);
-      for(let i=0;i<4&&currentTmdbPage<currentTmdbTotalPages;i++)await loadMoreTmdb(true);
-    }finally{autoLoadingMore=false;}
+      await loadTmdb(endpoint,label,requestId);
+      if(requestId!==catalogLoadSequence)return;
+      for(let i=0;i<4&&currentTmdbPage<currentTmdbTotalPages&&!query.trim()&&requestId===catalogLoadSequence;i++)await loadMoreTmdb(true,requestId);
+    }finally{if(requestId===catalogLoadSequence)autoLoadingMore=false;}
   }
   window.addEventListener('scroll',()=>{
     const remaining=document.documentElement.scrollHeight-(window.innerHeight+window.scrollY);
     if(remaining>1700)autoLoadArmed=true;
-    if(autoLoadingMore||!autoLoadArmed||currentTmdbPage>=currentTmdbTotalPages)return;
+    if(query.trim()||autoLoadingMore||!autoLoadArmed||currentTmdbPage>=currentTmdbTotalPages)return;
     // Only paginate in response to a real user scroll, not layout changes caused by filtering/rendering.
     if(Date.now()-lastUserScrollAt>1200)return;
     if(remaining<=850){
@@ -765,10 +790,18 @@
   if(!isLocalPreview())$('#tmdbConnect').textContent='Refresh catalogue';
   $('#tmdbConnect').addEventListener('click',()=>loadAndFill(currentTmdbEndpoint,currentTmdbLabel));
   loadAndFill('trending/movie/week','Trending 2000–2026');
-  $('#loadMoreTmdb').addEventListener('click',loadMoreTmdb);
+  $('#loadMoreTmdb').addEventListener('click',()=>loadMoreTmdb(false,catalogLoadSequence));
   document.querySelector('.tmdb-actions').addEventListener('click',e=>{const b=e.target.closest('[data-tmdb]');if(b)loadAndFill(b.dataset.tmdb,b.textContent.trim());});
   let tmdbSearchTimer,archiveSearchTimer;
-  $('#searchInput').addEventListener('input',e=>{query=e.target.value;render();clearTimeout(tmdbSearchTimer);clearTimeout(archiveSearchTimer);if(query.trim().length>=2){tmdbSearchTimer=setTimeout(()=>searchTmdb(query),450);archiveSearchTimer=setTimeout(()=>searchArchive(query),650);}});
+  $('#searchInput').addEventListener('input',e=>{
+    query=e.target.value;
+    tmdbSearchSequence++;archiveSearchSequence++;
+    tmdbSearchResults=[];archiveSearchResults=[];
+    render();
+    clearTimeout(tmdbSearchTimer);clearTimeout(archiveSearchTimer);
+    const term=query.trim();
+    if(term.length>=2){tmdbSearchTimer=setTimeout(()=>searchTmdb(term),350);archiveSearchTimer=setTimeout(()=>searchArchive(term),500);}
+  });
   $('#heroPlay').addEventListener('click',()=>{if(selected)playFilm(selected);else loadTmdb('trending/movie/week','Trending');});$('#heroDetails').addEventListener('click',()=>{if(selected)openDetails(selected.id);else loadTmdb('trending/movie/week','Trending');});$('#genreFilter').addEventListener('change',e=>{activeGenre=e.target.value;renderChips();render();});$('#eraFilter').addEventListener('change',e=>{activeEra=e.target.value;render();});$('#genreChips').addEventListener('click',e=>{const b=e.target.closest('[data-genre]');if(!b)return;activeGenre=b.dataset.genre;$('#genreFilter').value=activeGenre;renderChips();render();});$('#sortButton').addEventListener('click',()=>{sortNewest=!sortNewest;$('#sortButton').innerHTML=`↕ <span>${sortNewest?'Newest first':'Featured'}</span>`;render();});$('#movieGrid').addEventListener('click',e=>{const saveBtn=e.target.closest('[data-save]');if(saveBtn){e.stopPropagation();toggleSave(saveBtn.dataset.save);return;}const details=e.target.closest('[data-details]');if(details){openDetails(details.dataset.details);return;}const card=e.target.closest('[data-card]');if(card)openDetails(card.dataset.card);});$('#savedToggle').addEventListener('click',()=>{showingSaved=!showingSaved;$('#savedToggle').style.borderColor=showingSaved?'var(--accent)':'';$('#savedToggle').innerHTML=`${showingSaved?'♥':'♡'} <span class="saved-count" id="savedCount">${saved.size}</span>`;document.querySelector('#library').scrollIntoView({behavior:'smooth'});render();});$('#loadMore').addEventListener('click',loadMore);$('#modalClose').addEventListener('click',()=>closeModal('#modalBackdrop'));$('#modalBackdrop').addEventListener('click',e=>{if(e.target===$('#modalBackdrop'))closeModal('#modalBackdrop');});$('#modalPlay').addEventListener('click',()=>playFilm(selected));$('#modalSave').addEventListener('click',()=>toggleSave(selected.id));$('#playerClose').addEventListener('click',()=>{const v=$('#playerFrame video');if(v)v.pause();$('#playerFrame').replaceChildren();closeModal('#playerBackdrop');});$('#playerBackdrop').addEventListener('click',e=>{if(e.target===$('#playerBackdrop')){$('#playerClose').click();}});$('#menuButton').addEventListener('click',()=>$('.nav-links').classList.toggle('open'));$('.nav-links').addEventListener('click',e=>{if(e.target.closest('a'))$('.nav-links').classList.remove('open');});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#playerBackdrop').hidden)$('#playerClose').click();else closeModal('#modalBackdrop');}if(e.key==='/'&&!/input|textarea/i.test(document.activeElement.tagName)){e.preventDefault();$('#searchInput').focus();}});
   // Subtle pointer-responsive poster tilt, with no distracting glow effects.
   ['#movieGrid','#freeMovieGrid'].forEach(selector=>{
