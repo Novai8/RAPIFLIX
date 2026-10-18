@@ -1,0 +1,11 @@
+{
+  "embedProviders": [
+    {
+      "provider": "VidCore",
+      "label": "VidCore Player",
+      "authorized": true,
+      "urlTemplate": "https://vidcore.org/embed/movie/{tmdb_id}"
+    }
+  ],
+  "movies": {}
+}

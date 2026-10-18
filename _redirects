@@ -1,0 +1,5 @@
+/movies /index.html 200
+/series /index.html 200
+/anime /index.html 200
+/search /index.html 200
+/title/* /index.html 200
