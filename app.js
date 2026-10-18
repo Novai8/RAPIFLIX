@@ -10,7 +10,7 @@
   let activeGenre = 'all', activeEra = '2000-2026', query = '', sortNewest = false, showingSaved = false, extraPage = 1, selected = catalog[0], heroIndex = 0;
   let tmdbSearchResults = [], archiveSearchResults = [];
   let tmdbSearchSequence = 0, archiveSearchSequence = 0, catalogLoadSequence = 0;
-  let tmdbSearchLoading = false, archiveSearchLoading = false;
+  let tmdbSearchLoading = false, archiveSearchLoading = false, hideSuggestionsUntilNextInput = false;
   let currentTmdbEndpoint = 'trending/movie/week', currentTmdbLabel = 'Trending 2000–2026', currentTmdbPage = 1, currentTmdbTotalPages = 1, currentTmdbParams = { 'primary_release_date.gte': '2000-01-01', 'primary_release_date.lte': '2026-12-31', sort_by: 'popularity.desc' };
   let autoLoadingMore = false;
   let lastUserScrollAt = 0;
@@ -158,7 +158,7 @@
     const input=$('#searchInput');
     if(!host||!input)return;
     const term=query.trim();
-    if(term.length<2){host.hidden=true;host.replaceChildren();input.setAttribute('aria-expanded','false');return;}
+    if(hideSuggestionsUntilNextInput||term.length<2){host.hidden=true;host.replaceChildren();input.setAttribute('aria-expanded','false');return;}
     const items=[...new Map([...tmdbSearchResults,...archiveSearchResults].map(m=>[m.id,m])).values()].slice(0,6);
     if(!items.length){
       host.innerHTML=`<div class="search-suggestion-status" role="status">${tmdbSearchLoading||archiveSearchLoading?'Searching movies and series…':'No matches yet. Press Enter to view full results.'}</div>`;
@@ -833,6 +833,7 @@
   $('#searchInput').addEventListener('input',e=>{
     const previous=query;
     query=e.target.value;
+    hideSuggestionsUntilNextInput=false;
     if(!previous.trim()&&query.trim()){
       activeGenre='all';activeEra='2000-2026';showingSaved=false;
       $('#genreFilter').value='all';$('#eraFilter').value=activeEra;renderChips();
@@ -845,7 +846,7 @@
   document.addEventListener('rapiflix:search-submit',e=>{
     const term=String(e.detail?.query||$('#searchInput').value||'').trim();
     if(!term)return;
-    query=term;$('#searchInput').value=term;
+    query=term;$('#searchInput').value=term;hideSuggestionsUntilNextInput=true;
     clearTimeout(tmdbSearchTimer);clearTimeout(archiveSearchTimer);
     tmdbSearchSequence++;archiveSearchSequence++;
     tmdbSearchLoading=archiveSearchLoading=term.length>=2;
@@ -855,7 +856,7 @@
   });
   document.addEventListener('rapiflix:clear-search',()=>{
     clearTimeout(tmdbSearchTimer);clearTimeout(archiveSearchTimer);
-    query='';tmdbSearchSequence++;archiveSearchSequence++;
+    query='';hideSuggestionsUntilNextInput=false;tmdbSearchSequence++;archiveSearchSequence++;
     tmdbSearchResults=[];archiveSearchResults=[];tmdbSearchLoading=false;archiveSearchLoading=false;
     renderSearchSuggestions();render();
   });
@@ -865,7 +866,7 @@
     const id=button.dataset.searchSuggestion;
     const title=[...tmdbSearchResults,...archiveSearchResults].find(m=>m.id===id);
     if(!title)return;
-    $('#searchSuggestions').hidden=true;$('#searchInput').setAttribute('aria-expanded','false');
+    hideSuggestionsUntilNextInput=true;$('#searchSuggestions').hidden=true;$('#searchInput').setAttribute('aria-expanded','false');
     $('#searchInput').blur();openDetails(id);
   });
   $('#searchSuggestions')?.addEventListener('keydown',e=>{
