@@ -171,3 +171,119 @@ html[data-page=trending] #movieGrid .movie-card:nth-child(n+11) { display: block
 #freeMovieGrid .movie-card {
   animation: none !important;
 }
+
+
+/* Stable search UX: suggestions float above the page instead of shifting its layout. */
+.search-wrap {
+  position: relative;
+  overflow: visible;
+}
+.search-suggestions[hidden] {
+  display: none !important;
+}
+.search-suggestions {
+  position: absolute;
+  z-index: 10000;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(360px, calc(100vw - 28px));
+  max-height: min(62vh, 440px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 7px;
+  border: 1px solid color-mix(in srgb, var(--fg) 18%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg) 92%, #171923 8%);
+  color: var(--fg);
+  box-shadow: 0 22px 70px #0009;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+.search-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .16s ease;
+}
+.search-suggestion:hover,
+.search-suggestion:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--btn) 16%, transparent);
+}
+.search-suggestion-art {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 52px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  color: var(--btn);
+  font-size: 15px;
+}
+.search-suggestion-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.search-suggestion-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+.search-suggestion-copy strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-suggestion-copy small {
+  color: color-mix(in srgb, var(--fg) 67%, transparent);
+  font-size: 10px;
+  line-height: 1.3;
+}
+.search-suggestion-arrow {
+  flex: 0 0 auto;
+  color: var(--btn);
+  font-size: 14px;
+}
+.search-suggestion-status {
+  padding: 13px 12px;
+  color: color-mix(in srgb, var(--fg) 74%, transparent);
+  font-size: 12px;
+  line-height: 1.5;
+}
+html[data-page=search] #appMain {
+  animation: none !important;
+}
+html[data-page=search] #movieGrid .movie-card {
+  animation: none !important;
+}
+@media (max-width: 760px) {
+  .search-suggestions {
+    width: min(320px, calc(100vw - 24px));
+    max-height: min(55vh, 380px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-wrap,
+  .search-wrap:focus-within,
+  .search-suggestion {
+    transition: none !important;
+  }
+}
