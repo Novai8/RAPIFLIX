@@ -72,7 +72,9 @@
     $('#trailerPreview').hidden=true;
     modal.hidden=false;
     document.body.classList.add('modal-open');
-    const readableTitle=(r.slug||'Title').replace(/-/g,' ');\n    document.title=readableTitle+' | Movie details and viewing options | Rapiflix';\n    setMetaDescription('Explore '+readableTitle+' on Rapiflix. Read title details and discover available viewing options.');
+    const readableTitle=(r.slug||'Title').replace(/-/g,' ');
+    document.title=readableTitle+' | Movie details and viewing options | Rapiflix';
+    setMetaDescription('Explore '+readableTitle+' on Rapiflix. Read title details and discover available viewing options.');
   }
   function findTitleCard(r){
     const cards=$$('.movie-card');
