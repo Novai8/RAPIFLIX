@@ -412,6 +412,15 @@
       audioTracks:Array.isArray(source.audioTracks)?source.audioTracks:[]
     }));
   }
+  async function withTimeout(promise, milliseconds, message){
+    let timeoutId;
+    try{
+      return await Promise.race([
+        promise,
+        new Promise((_,reject)=>{timeoutId=setTimeout(()=>reject(new Error(message)),milliseconds);})
+      ]);
+    }finally{clearTimeout(timeoutId);}
+  }
   async function playFilm(m){
     // Playback must never wait for an optional manifest request. The default movie and TV players do not need it.
     if(!m)return;
@@ -489,14 +498,14 @@
         episodeSelect.innerHTML='';
         for(let n=1;n<=count;n++){const option=document.createElement('option');option.value=String(n);option.textContent='Episode '+n;episodeSelect.append(option);}
         try{
-          const response=await tmdbRequest('tv/'+encodeURIComponent(String(m.tmdbId))+'/season/'+seasonNumber,{language:'en-US'});
+          const response=await withTimeout(tmdbRequest('tv/'+encodeURIComponent(String(m.tmdbId))+'/season/'+seasonNumber,{language:'en-US'}),5000,'Season metadata request timed out.');
           if(response.ok){const data=await response.json();(data.episodes||[]).forEach((ep,index)=>{const option=episodeSelect.options[index];if(option&&ep.name)option.textContent='Episode '+ep.episode_number+' · '+ep.name;});}
         }catch(_){}
         loadVidCoreEpisode();
       });
       episodeSelect.addEventListener('change',loadVidCoreEpisode);
       try{
-        const response=await tmdbRequest('tv/'+encodeURIComponent(String(m.tmdbId)),{language:'en-US'});
+        const response=await withTimeout(tmdbRequest('tv/'+encodeURIComponent(String(m.tmdbId)),{language:'en-US'}),5000,'Series metadata request timed out.');
         if(response.ok){const data=await response.json();seasonData=(data.seasons||[]).filter(item=>Number(item.season_number)>=0);if(seasonData.length){seasonSelect.innerHTML=seasonData.map(item=>'<option value="'+Number(item.season_number)+'">'+escapeHtml(item.name||('Season '+item.season_number))+'</option>').join('');}}
         seasonSelect.value=seasonData.some(item=>Number(item.season_number)===1)?'1':String(Number(seasonData[0]?.season_number)||0);
         const seasonNumber=Number(seasonSelect.value)||0;
@@ -504,7 +513,7 @@
         const count=Math.max(1,Number(season&&season.episode_count)||1);
         episodeSelect.innerHTML='';
         for(let n=1;n<=count;n++){const option=document.createElement('option');option.value=String(n);option.textContent='Episode '+n;episodeSelect.append(option);}
-        const seasonResponse=await tmdbRequest('tv/'+encodeURIComponent(String(m.tmdbId))+'/season/'+seasonNumber,{language:'en-US'});
+        const seasonResponse=await withTimeout(tmdbRequest('tv/'+encodeURIComponent(String(m.tmdbId))+'/season/'+seasonNumber,{language:'en-US'}),5000,'Season metadata request timed out.');
         if(seasonResponse.ok){const data=await seasonResponse.json();(data.episodes||[]).forEach((ep,index)=>{const option=episodeSelect.options[index];if(option&&ep.name)option.textContent='Episode '+ep.episode_number+' · '+ep.name;});}
       }catch(_){/* Still allow manual episode selection if TMDB episode metadata is unavailable. */}
       loadVidCoreEpisode();
