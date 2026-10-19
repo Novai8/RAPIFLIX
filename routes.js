@@ -14,7 +14,7 @@
   function setHue(h){state.hue=((Number(h)||0)%360+360)%360;const light=document.documentElement.dataset.theme==='light';const bg=hsl(state.hue,light?75:42,light?93:9),fg=hsl(state.hue,light?60:20,light?11:95),btn=hsl(state.hue,light?88:92,light?46:62),k=lum(btn),white=1.05/(k+.05),black=(k+.05)/.055,bf=white>=black?'#FFFFFF':'#0B0C12';const root=document.documentElement;root.style.setProperty('--bg',hex(bg));root.style.setProperty('--fg',hex(fg));root.style.setProperty('--btn',hex(btn));root.style.setProperty('--bf',bf);[['bg',bg],['fg',fg],['btn',btn]].forEach(([key,rgb])=>{const value=hex(rgb);const sw=$('#'+key+'Swatch'),txt=$('#'+key+'Hex');if(sw){sw.style.setProperty('--swatch',value);sw.style.background=value;}if(txt)txt.textContent=value;});root.style.setProperty('--poster-hue',state.hue); }
   function readTheme(){let t='';try{t=localStorage.getItem('rf-theme')||'';}catch(_){}if(!t)t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';applyTheme(t);}
   function applyTheme(t){const theme=t==='light'?'light':'dark';document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme;try{localStorage.setItem('rf-theme',theme);}catch(_){}setHue(state.hue);}
-  function route(){const path=location.pathname;const qs=new URLSearchParams(location.search);if(path==='/search')return {page:'search',query:qs.get('q')||''};if(path.startsWith('/details/'))return {page:'detail',slug:path.slice('/details/'.length).split('/')[0],id:qs.get('id')||'',type:qs.get('type')||'movie'};if(path.startsWith('/title/'))return {page:'title',slug:path.slice('/title/'.length).split('/')[0],id:qs.get('id')||'',type:qs.get('type')||''};return {page:routeMap[path]||'trending'};}
+  function route(){const path=location.pathname;const qs=new URLSearchParams(location.search);if(path==='/search')return {page:'search',query:qs.get('q')||''};if(path.startsWith('/title/'))return {page:'title',slug:path.slice('/title/'.length).split('/')[0],id:qs.get('id')||'',type:qs.get('type')||''};return {page:routeMap[path]||'trending'};}
   function slugify(s){return String(s||'title').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'title';}
   function go(path,replace=false){if(replace)history.replaceState({rapiflix:true},'',path);else history.pushState({rapiflix:true},'',path);renderRoute();}
   function setMetaDescription(value){
@@ -23,7 +23,7 @@
   }
   function setNav(page,query=''){
     document.documentElement.dataset.page=page;
-    const navPage=page==='search'||page==='title'||page==='detail'?'none':page;
+    const navPage=page==='search'||page==='title'?'none':page;
     $('.tabs a').forEach(a=>{if(a.dataset.route===navPage){a.setAttribute('aria-current','page');}else a.removeAttribute('aria-current');});
     positionIndicator();
     const q=String(query||'').trim();
@@ -35,7 +35,6 @@
       anime:'Anime Movies & Series',
       search:cleanQ?'Search results for '+cleanQ:'Search Movies, TV Series & Anime',
       title:'Movie and Series Details',
-      detail:'Full Movie & Series Details'
     };
     const descriptions={
       trending:'Discover trending movies, popular TV series and anime on Rapiflix. Explore titles, browse genres and find available viewing options.',
@@ -44,13 +43,12 @@
       anime:'Explore anime movies and series on Rapiflix. Discover anime titles, search the catalogue and find available viewing options.',
       search:cleanQ?'Search Rapiflix for '+cleanQ+'. Explore matching movies, TV series and anime, with title details and available viewing options.':'Search Rapiflix for movies, TV series and anime by title.',
       title:'Explore title details on Rapiflix, including synopsis information and available viewing options.',
-      detail:'Explore the full cast, story, production details, ratings and related titles on Rapiflix.'
     };
     document.title=(titles[page]||titles.trending)+' | Rapiflix';
     setMetaDescription(descriptions[page]||descriptions.trending);
   }
   function positionIndicator(){const active=$('.tabs a[aria-current=page]'),indicator=$('#tabIndicator'),tabs=$('.tabs');if(!active||!indicator||!tabs){indicator?.classList.add('hidden');return;}const a=active.getBoundingClientRect(),b=tabs.getBoundingClientRect();indicator.style.width=a.width+'px';indicator.style.transform='translateX('+(a.left-b.left-4)+'px)';indicator.classList.remove('hidden');}
-  function setPageCopy(page,query=''){const title=$('#pageTitle'),sub=$('#pageSubtitle'),hero=$('#heroSection'),catalog=$('#catalogSection'),detail=$('#detailPage'),main=$('#appMain'),footer=$('footer'),palette=$('.color-panel');if(detail)detail.hidden=page!=='detail';if(main)main.hidden=page==='detail';if(footer)footer.hidden=page==='detail';if(palette)palette.hidden=page==='detail';const data={trending:['Trending now','Hover a title and the whole page changes color.'],movies:['Movies','Features you can start in a second.'],series:['Series','Binge-ready shows with every episode in reach.'],anime:['Anime','Films and series, subbed and dubbed.'],search:[query?'Search results':'Search titles',query?'Movies, TV series and anime matching your search.':'Search for a title, genre or year.'],title:['Title details',''],detail:['Full title profile','Cast, story, production details and related titles.']}[page]||['Trending now','Discover your next favourite.'];if(title)title.textContent=data[0];if(sub)sub.textContent=data[1];if(hero)hero.hidden=page==='search'||page==='title'||page==='detail';if(catalog)catalog.hidden=page==='title'||page==='detail';const labels={trending:'trending/movie/week',movies:'discover/movie',series:'discover/tv',anime:'anime'};const target=labels[page];if(target){const btn=$('.tmdb-tab[data-tmdb="'+target+'"]');if(btn&&!btn.classList.contains('active'))btn.click();}if(page==='search'){const input=$('#searchInput');if(input&&input.value!==query)input.value=query;}if(page!=='search'){const input=$('#searchInput');if(input&&input.value){input.value='';document.dispatchEvent(new CustomEvent('rapiflix:clear-search'));}}}
+  function setPageCopy(page,query=''){const title=$('#pageTitle'),sub=$('#pageSubtitle'),hero=$('#heroSection'),catalog=$('#catalogSection');const data={trending:['Trending now','Hover a title and the whole page changes color.'],movies:['Movies','Features you can start in a second.'],series:['Series','Binge-ready shows with every episode in reach.'],anime:['Anime','Films and series, subbed and dubbed.'],search:[query?'Search results':'Search titles',query?'Movies, TV series and anime matching your search.':'Search for a title, genre or year.'],title:['Title details','']}[page]||['Trending now','Discover your next favourite.'];if(title)title.textContent=data[0];if(sub)sub.textContent=data[1];if(hero)hero.hidden=page==='search'||page==='title';if(catalog)catalog.hidden=page==='title';const labels={trending:'trending/movie/week',movies:'discover/movie',series:'discover/tv',anime:'anime'};const target=labels[page];if(target){const btn=$('.tmdb-tab[data-tmdb="'+target+'"]');if(btn&&!btn.classList.contains('active'))btn.click();}if(page==='search'){const input=$('#searchInput');if(input&&input.value!==query)input.value=query;}if(page!=='search'){const input=$('#searchInput');if(input&&input.value){input.value='';document.dispatchEvent(new CustomEvent('rapiflix:clear-search'));}}}
   function showTitleLoading(r){
     const modal=$('#modalBackdrop');
     if(!modal)return;
@@ -90,11 +88,7 @@
     state.page=r.page;
     setNav(r.page,r.query||'');
     setPageCopy(r.page,r.query||'');
-    if(r.page==='detail'){
-      state.modalSlug='';state.titleSearchRequested='';
-      const modal=$('#modalBackdrop');if(modal)modal.hidden=true;document.body.classList.remove('modal-open');
-      document.dispatchEvent(new CustomEvent('rapiflix:detail-page',{detail:{id:r.id,type:r.type,slug:r.slug}}));
-    }else if(r.page==='title'){
+    if(r.page==='title'){
       state.modalSlug=r.slug;
       const card=findTitleCard(r);
       if(card){
