@@ -898,3 +898,64 @@ html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
   .card-title { font-size:12px; }
   .loading-curtain.loader-random-scene .loader-visual { transform:scale(.84); }
 }
+
+
+/* Desktop loader visibility fix: keep cinematic scenes visible without changing the site layout. */
+@media (min-width: 601px) {
+  .loading-curtain.loader-random-scene {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    min-width: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100vh;
+    max-height: none;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    place-items: center;
+    align-content: center;
+    justify-items: center;
+    gap: 12px;
+    overflow: hidden;
+    z-index: 2147483000;
+    background: #07080d !important;
+    isolation: isolate;
+  }
+  .loading-curtain.loader-random-scene .loader-sky {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .loading-curtain.loader-random-scene .loader-visual {
+    position: relative !important;
+    z-index: 2 !important;
+    display: grid !important;
+    width: min(760px, 92vw) !important;
+    height: clamp(250px, 44vh, 430px) !important;
+    min-height: 230px !important;
+    max-height: 48vh;
+    align-self: end;
+    overflow: visible;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+  .loading-curtain.loader-random-scene .loader-scene.is-active {
+    display: block !important;
+    position: absolute !important;
+    inset: 0 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto;
+  }
+  .loading-curtain.loader-random-scene .loader-copy {
+    position: relative;
+    z-index: 4 !important;
+    width: min(460px, 90vw);
+    align-self: start;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+}
