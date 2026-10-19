@@ -14,7 +14,7 @@
   function setHue(h){state.hue=((Number(h)||0)%360+360)%360;const light=document.documentElement.dataset.theme==='light';const bg=hsl(state.hue,light?75:42,light?93:9),fg=hsl(state.hue,light?60:20,light?11:95),btn=hsl(state.hue,light?88:92,light?46:62),k=lum(btn),white=1.05/(k+.05),black=(k+.05)/.055,bf=white>=black?'#FFFFFF':'#0B0C12';const root=document.documentElement;root.style.setProperty('--bg',hex(bg));root.style.setProperty('--fg',hex(fg));root.style.setProperty('--btn',hex(btn));root.style.setProperty('--bf',bf);[['bg',bg],['fg',fg],['btn',btn]].forEach(([key,rgb])=>{const value=hex(rgb);const sw=$('#'+key+'Swatch'),txt=$('#'+key+'Hex');if(sw){sw.style.setProperty('--swatch',value);sw.style.background=value;}if(txt)txt.textContent=value;});root.style.setProperty('--poster-hue',state.hue); }
   function readTheme(){let t='';try{t=localStorage.getItem('rf-theme')||'';}catch(_){}if(!t)t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';applyTheme(t);}
   function applyTheme(t){const theme=t==='light'?'light':'dark';document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme;try{localStorage.setItem('rf-theme',theme);}catch(_){}setHue(state.hue);}
-  function route(){const path=location.pathname;const qs=new URLSearchParams(location.search);if(path==='/search')return {page:'search',query:qs.get('q')||''};if(path.startsWith('/details/'))return {page:'detail',slug:path.slice('/details/'.length).split('/')[0],id:qs.get('id')||'',type:qs.get('type')||'movie'};if(path.startsWith('/title/'))return {page:'title',slug:path.slice('/title/'.length).split('/')[0],id:qs.get('id')||'',type:qs.get('type')||''};return {page:routeMap[path]||'trending'};}
+  function route(){const path=location.pathname;const qs=new URLSearchParams(location.search);if(path.startsWith('/details/')||path.startsWith('/title/')){history.replaceState({rapiflix:true},'','/');return {page:'trending'};}if(path==='/search')return {page:'search',query:qs.get('q')||''};return {page:routeMap[path]||'trending'};}
   function slugify(s){return String(s||'title').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'title';}
   function go(path,replace=false){if(replace)history.replaceState({rapiflix:true},'',path);else history.pushState({rapiflix:true},'',path);renderRoute();}
   function setMetaDescription(value){
@@ -90,43 +90,6 @@
     state.page=r.page;
     setNav(r.page,r.query||'');
     setPageCopy(r.page,r.query||'');
-    if(r.page==='detail'){
-      state.modalSlug='';state.titleSearchRequested='';
-      const modal=$('#modalBackdrop');if(modal)modal.hidden=true;
-      document.body.classList.remove('modal-open');
-      document.dispatchEvent(new CustomEvent('rapiflix:detail-page',{detail:{id:r.id,type:r.type,slug:r.slug}}));
-    }else if(r.page==='title'){
-      state.modalSlug=r.slug;
-      const card=findTitleCard(r);
-      if(card){
-        state.titleSearchRequested='';
-        if($('#modalBackdrop')?.hidden||$('#modalBackdrop')?.dataset.titleLoading==='1')card.click();
-      }else{
-        showTitleLoading(r);
-        const key=r.slug+'|'+r.id+'|'+r.type;
-        if(key&&state.titleSearchRequested!==key){
-          state.titleSearchRequested=key;
-          const query=(r.slug||'').replace(/-/g,' ').trim();
-          if(query)document.dispatchEvent(new CustomEvent('rapiflix:search-submit',{detail:{query,committed:true}}));
-          setTimeout(()=>{
-            const modal=$('#modalBackdrop');
-            if(state.page==='title'&&state.titleSearchRequested===key&&modal?.dataset.titleLoading==='1'){
-              $('#modalTitle').textContent=(r.slug||'Title unavailable').replace(/-/g,' ');
-              $('#modalDescription').textContent='Rapiflix could not find this title in the current catalogue. Go back and search for its exact name.';
-              $('#sourceNote').textContent='The title may be unavailable, or the catalogue search may have failed.';
-              $('#modalPlay').disabled=true;
-              $('#modalSave').disabled=true;
-            }
-          },12000);
-        }
-      }
-    }else{
-      state.modalSlug='';
-      state.titleSearchRequested='';
-      const back=$('#modalBackdrop');
-      if(back&&!back.hidden)back.hidden=true;
-      document.body.classList.remove('modal-open');
-    }
     window.scrollTo(0,{behavior:reduced?'auto':'smooth'});
     const main=$('#appMain');
     if(main){main.style.animation='none';void main.offsetWidth;main.style.animation='';}
@@ -154,17 +117,7 @@
         });
         card.addEventListener('click',e=>{
           const link=e.target.closest('a[data-title-link]');
-          if(link&&(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey))return;
           if(link)e.preventDefault();
-          const name=$('.card-title',card)?.textContent?.trim()||'title';
-          const id=card.dataset.card||'';
-          const type=card.dataset.titleType||'movie';
-          const params=new URLSearchParams({id,type});
-          const path='/title/'+slugify(name)+'?'+params.toString();
-          if(location.pathname+location.search!==path)history.pushState({rapiflix:true},'',path);
-          state.modalSlug=slugify(name);
-          state.titleSearchRequested='';
-          setNav('title');
         });
       }
     });
@@ -179,11 +132,6 @@
       if(heading)heading.textContent=cards.length?(cards.length+' '+(cards.length===1?'result':'results')+' for “'+q+'”'):'No results for “'+q+'”';
       const subtitle=$('#pageSubtitle');
       if(subtitle)subtitle.textContent=cards.length?'Hover a title to recolor the page.':'Try a title, genre, content type or year.';
-    }
-    if(location.pathname.startsWith('/title/')&&($('#modalBackdrop')?.hidden||$('#modalBackdrop')?.dataset.titleLoading==='1')){
-      const currentRoute=route();
-      const match=findTitleCard(currentRoute);
-      if(match)match.click();
     }
   }
   function monitorModal(){
@@ -287,7 +235,7 @@
   }
   function initCursor(){if(!matchMedia('(hover:hover) and (pointer:fine)').matches)return;document.documentElement.classList.add('cc');const dot=$('.cursor-dot'),ring=$('.cursor-ring');if(!dot||!ring)return;let visible=false;const move=e=>{state.pointerX=e.clientX;state.pointerY=e.clientY;if(!visible){visible=true;dot.style.opacity=ring.style.opacity='1';}dot.style.transform='translate('+e.clientX+'px,'+e.clientY+'px)';};window.addEventListener('pointermove',e=>{move(e);const glow=$('.mouse-glow');if(glow){glow.style.setProperty('--mx',e.clientX+'px');glow.style.setProperty('--my',e.clientY+'px');}},{passive:true});document.addEventListener('pointerover',e=>{const target=e.target.closest('[data-cur],button,a,input,.movie-card');ring.classList.remove('view','link','text');if(!target)return;if(target.matches('.movie-card')||target.dataset.cur==='view')ring.classList.add('view');else if(target.matches('input'))ring.classList.add('text');else ring.classList.add('link');});window.addEventListener('pointerout',e=>{if(!e.relatedTarget){dot.style.opacity=ring.style.opacity='0';visible=false;}});if(!reduced){const tick=()=>{state.ringX+=(state.pointerX-state.ringX)*.18;state.ringY+=(state.pointerY-state.ringY)*.18;ring.style.transform='translate('+state.ringX+'px,'+state.ringY+'px)';requestAnimationFrame(tick);};requestAnimationFrame(tick);document.addEventListener('pointerdown',()=>ring.style.scale='.8');document.addEventListener('pointerup',()=>ring.style.scale='1');}else{const tick=()=>{ring.style.transform='translate('+state.pointerX+'px,'+state.pointerY+'px)';requestAnimationFrame(tick);};requestAnimationFrame(tick);}}
   function loadingCurtain(){const curtain=$('#loadingCurtain'),fill=$('#progressFill'),number=$('#progressNumber');if(!curtain||curtain.classList.contains('loader-random-scene'))return;let show=true;try{if(sessionStorage.getItem('rf-loaded'))show=false;else sessionStorage.setItem('rf-loaded','1');}catch(_){}if(!show){curtain.remove();return;}const start=performance.now(),minimum=1200;const tick=now=>{const p=Math.min(100,Math.round((1-Math.pow(1-Math.min(1,(now-start)/1600),3))*100));if(fill)fill.style.width=p+'%';if(number)number.textContent=p+'%';if(p<100&&now-start<4500){requestAnimationFrame(tick);return;}if(fill)fill.style.width='100%';if(number)number.textContent='100%';setTimeout(()=>{curtain.classList.add('done');setTimeout(()=>curtain.remove(),1200);},Math.max(0,minimum-(now-start))+150);};if(reduced){setTimeout(()=>{curtain.classList.add('done');setTimeout(()=>curtain.remove(),250);},200);}else requestAnimationFrame(tick);}
-  function bindNav(){ $$('.tabs a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();go(a.getAttribute('href'));}));$('#themeToggle')?.addEventListener('click',()=>applyTheme(document.documentElement.dataset.theme==='light'?'dark':'light'));$('#heroDetails')?.addEventListener('click',()=>{if(state.hero?.card)state.hero.card.click();});$('#heroPosterButton')?.addEventListener('click',()=>{if(state.hero?.card)state.hero.card.click();});$('#heroPlay')?.addEventListener('click',()=>{if(state.hero?.card)state.hero.card.click();const play=$('#modalPlay');if(play)setTimeout(()=>play.click(),80);});$('#modalClose')?.addEventListener('click',()=>{if(location.pathname.startsWith('/title/')){if(history.state?.rapiflix)history.back();else go('/');}else{const m=$('#modalBackdrop');if(m)m.hidden=true;}});$('#playerClose')?.addEventListener('click',()=>{const p=$('#playerBackdrop');if(p)p.hidden=true;});window.addEventListener('resize',positionIndicator,{passive:true});document.fonts?.ready?.then(positionIndicator);window.addEventListener('popstate',()=>{const r=route();if(r.page!=='title'){const modal=$('#modalBackdrop');if(modal)modal.hidden=true;document.body.classList.remove('modal-open');}renderRoute();if(r.page==='search'&&r.query){document.dispatchEvent(new CustomEvent('rapiflix:search-submit',{detail:{query:r.query,committed:true}}));$('#catalogSection')?.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});}});}
+  function bindNav(){ $$('.tabs a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();go(a.getAttribute('href'));}));$('#themeToggle')?.addEventListener('click',()=>applyTheme(document.documentElement.dataset.theme==='light'?'dark':'light'));$('#heroDetails')?.addEventListener('click',()=>$('#catalogSection')?.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'}));$('#heroPosterButton')?.addEventListener('click',()=>{if(state.hero?.card)state.hero.card.click();});$('#heroPlay')?.addEventListener('click',()=>{if(state.hero?.card)state.hero.card.click();});$('#modalClose')?.addEventListener('click',()=>{if(location.pathname.startsWith('/title/')){if(history.state?.rapiflix)history.back();else go('/');}else{const m=$('#modalBackdrop');if(m)m.hidden=true;}});$('#playerClose')?.addEventListener('click',()=>{const p=$('#playerBackdrop');if(p)p.hidden=true;});window.addEventListener('resize',positionIndicator,{passive:true});document.fonts?.ready?.then(positionIndicator);window.addEventListener('popstate',()=>{const r=route();if(r.page!=='title'){const modal=$('#modalBackdrop');if(modal)modal.hidden=true;document.body.classList.remove('modal-open');}renderRoute();if(r.page==='search'&&r.query){document.dispatchEvent(new CustomEvent('rapiflix:search-submit',{detail:{query:r.query,committed:true}}));$('#catalogSection')?.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});}});}
   const cardObserver=new MutationObserver(()=>{observeCards();});['#movieGrid','#freeMovieGrid'].forEach(selector=>{const grid=$(selector);if(grid)cardObserver.observe(grid,{childList:true,subtree:true});});
   readTheme();bindNav();searchBehavior();monitorModal();initCursor();loadingCurtain();const initial=route();if(initial.page==='search'){state.previous='trending';}renderRoute();if(initial.page==='search'&&initial.query){document.dispatchEvent(new CustomEvent('rapiflix:search-submit',{detail:{query:initial.query,committed:true}}));$('#catalogSection')?.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});}setTimeout(()=>{if(state.page!=='trending'||$('#searchInput')?.value.trim())return;const first=$('.movie-card');if(first&&!state.hero){setHeroFromCard(first);setHue(titleHue($('.card-title',first)?.textContent||''));}},1200);
 })();
