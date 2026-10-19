@@ -621,7 +621,7 @@ html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
   min-height:100vh;min-height:100dvh;background:radial-gradient(ellipse at 50% 43%,#26153c 0%,#151025 34%,#090a13 70%,#05060a 100%);
   perspective:1000px;transition:opacity .48s ease,visibility .48s ease;
 }
-.loader-portal-scene * {box-sizing:border-box}
+.loader-portal-scene * {box-sizing:border-box}\n.loader-portal-scene[hidden] {display:none!important}
 .loader-portal-scene.done {opacity:0;visibility:hidden;pointer-events:none}
 .portal-starfield {position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .portal-starfield i {position:absolute;width:2px;height:2px;border-radius:50%;background:#fff;opacity:.4;box-shadow:0 0 9px #bfa7ff;animation:portal-twinkle 2.6s ease-in-out infinite alternate}
@@ -653,7 +653,7 @@ html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
 .portal-copy .progress-track span {display:block;height:100%;width:0;background:linear-gradient(90deg,#ff5a1f,#ffb16d,#b46cff);box-shadow:0 0 15px #ff7a46;border-radius:99px;transition:width .12s linear}
 .portal-copy .loader-foot {width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;color:#a99abf;font-size:8px;letter-spacing:.11em}
 .portal-copy .loader-live-dot {width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:#ff7a46;box-shadow:0 0 12px #ff5a1f;animation:portal-dot-pulse 1s ease-in-out infinite alternate}
-.portal-sound-toggle {display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:42px;margin-top:17px;padding:9px 14px;border:1px solid #a98acb70;border-radius:999px;background:#ffffff0a;color:#f5edff;font:600 12px/1.2 inherit;letter-spacing:.01em;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .2s ease,border-color .2s ease,transform .2s ease}
+.portal-sound-toggle {display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:42px;margin-top:17px;padding:9px 14px;border:1px solid #a98acb70;border-radius:999px;background:#ffffff0a;color:#f5edff;font:600 12px/1.2 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.01em;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .2s ease,border-color .2s ease,transform .2s ease}
 .portal-sound-toggle:hover,.portal-sound-toggle:focus-visible {background:#ffffff16;border-color:#ff986d;outline:2px solid #ff986d55;outline-offset:3px}
 .portal-sound-toggle:active {transform:scale(.97)}
 .portal-sound-toggle[aria-pressed="true"] {border-color:#ff986d;background:#ff7b461c}
