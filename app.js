@@ -421,11 +421,11 @@
       $('#modalBackdrop').hidden=true;$('#playerBackdrop').hidden=false;document.body.classList.add('modal-open');
       $('#playerTitle').textContent=m.title;
       const frame=$('#playerFrame'), controls=$('#playerControls');
-      controls.innerHTML='<div class="provider-switch"><button type="button" id="playVidCore" class="secondary-button">VidCore</button><button type="button" id="playCinePro" class="secondary-button">CinePro sources</button></div><p class="source-note" id="cineProStatus">VidCore is active. CinePro can be tried without removing the existing provider.</p>';
+      controls.innerHTML='<div class="provider-switch" hidden aria-hidden="true"><button type="button" id="playVidCore" class="secondary-button">VidCore</button><button type="button" id="playCinePro" class="secondary-button">CinePro sources</button></div><p class="source-note" id="cineProStatus" hidden aria-hidden="true">VidCore is active. CinePro can be tried without removing the existing provider.</p>';
       function showVidCore(){
         const iframe=document.createElement('iframe');
         iframe.src='https://vidcore.org/embed/movie/'+encodeURIComponent(String(m.tmdbId));
-        iframe.title='VidCore player for '+m.title;
+        iframe.title='Video player for '+m.title;
         iframe.width='100%';iframe.height='100%';iframe.frameBorder='0';
         iframe.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';
         iframe.allowFullscreen=true;iframe.referrerPolicy='strict-origin-when-cross-origin';
@@ -454,7 +454,7 @@
       $('#playerTitle').textContent=m.title;
       const frame=$('#playerFrame'), controls=$('#playerControls');
       frame.innerHTML='<div class="player-placeholder"><div class="live-dot"></div><strong>Loading episodes…</strong><p>Getting season and episode information.</p></div>';
-      controls.innerHTML='<label>Season <select id="tvSeason"><option value="1">Season 1</option></select></label><label>Episode <select id="tvEpisode"><option value="1">Episode 1</option></select></label><button type="button" id="playCineProEpisode" class="secondary-button">Try CinePro sources</button><p class="source-note" id="cineProEpisodeStatus">VidCore remains the default TV player.</p>';
+      controls.innerHTML='<label>Season <select id="tvSeason"><option value="1">Season 1</option></select></label><label>Episode <select id="tvEpisode"><option value="1">Episode 1</option></select></label><button type="button" id="playCineProEpisode" class="secondary-button" hidden aria-hidden="true">Try CinePro sources</button><p class="source-note" id="cineProEpisodeStatus" hidden aria-hidden="true">VidCore remains the default TV player.</p>';
       const seasonSelect=controls.querySelector('#tvSeason'), episodeSelect=controls.querySelector('#tvEpisode');
       let seasonData=[];
       function loadVidCoreEpisode(){
