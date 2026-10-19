@@ -206,8 +206,72 @@
     return '/title/'+titleSlug(m.title)+'?'+params.toString();
   }
   function setText(selector,value){const element=$(selector);if(element)element.textContent=value;}
-  function updateHero(index=heroIndex){if(!featuredIds.length||!catalog.length){selected=null;heroIndex=0;$('#heroTitle').textContent='Find your next favourite film.';$('#heroKicker').textContent='CURRENT MOVIES & SERIES';$('#heroCopy').textContent='Load trending releases or search for a title. Available watch options depend on your region.';$('#heroYear').textContent='NEW';$('#heroGenre').textContent='Trending · Popular · Upcoming';setText('.quality-pill','DISCOVERY');heroArt.style.backgroundImage='linear-gradient(130deg,#28203c,#09090d)';setText('.index-current','01');setText('.hero-index>span:last-child','01');$('#heroPlay').disabled=true;$('#heroPlay').innerHTML='<span>⌕</span> Find movies';return;}heroIndex=(index+featuredIds.length)%featuredIds.length;selected=byId(featuredIds[heroIndex])||catalog[0];heroIndex=featuredIds.indexOf(selected.id);$('#heroPlay').disabled=false;$('#heroPlay').innerHTML=selected.kind==='tmdb'?'<span>▶</span> Watch now':'<span>▶</span> Play free film';$('#heroTitle').innerHTML=escapeHtml(selected.title).replace(/ (.+)/,'<br><em>$1</em>');if(!$('#heroTitle').innerHTML.includes('<em>'))$('#heroTitle').innerHTML=escapeHtml(selected.title)+'<br><em>forever.</em>';$('#heroKicker').textContent=(selected.tag||'FEATURED FILM')+' · RAPIFLIX SELECTION';$('#heroCopy').textContent=selected.desc;$('#heroYear').textContent=selected.year||'—';$('#heroGenre').textContent=selected.genres.join(' · ');setText('.quality-pill',selected.kind==='tmdb'?'WATCH OPTIONS':'IN-PLAYER');heroArt.style.backgroundImage=`linear-gradient(90deg,#09090d70,transparent),url("${imageUrl(selected)}")`;heroArt.onerror=null;heroArt.style.backgroundColor='#1b1721';setText('.index-current',String(heroIndex+1).padStart(2,'0'));setText('.hero-index>span:last-child',String(featuredIds.length).padStart(2,'0'));}
-  function posterMarkup(m){return `<div class="poster-wrap" style="background:${fallbackGradients[Math.abs(m.title.length)%fallbackGradients.length]}"><div class="poster-fallback"><div><span>${m.kind==='tmdb'?'MOVIE DISCOVERY':'FREE FILM LIBRARY'}</span>${escapeHtml(m.title)}</div></div><img loading="lazy" src="${escapeHtml(imageUrl(m))}" alt="Poster for ${escapeHtml(m.title)}" onerror="this.style.display='none'" onload="this.previousElementSibling.style.display='none'"><div class="poster-overlay"></div><span class="poster-badge">${escapeHtml(m.tag||'ARCHIVE PICK')}</span><button class="save-card ${saved.has(m.id)?'saved':''}" data-save="${escapeHtml(m.id)}" aria-label="${saved.has(m.id)?'Remove from':'Save to'} my list">${saved.has(m.id)?'♥':'♡'}</button><button class="card-play" data-details="${escapeHtml(m.id)}" aria-label="View ${escapeHtml(m.title)}">▶</button></div>`;}
+  function syncHeroPoster(movie){
+    const fallback=$('#heroPosterFallback');
+    const posterUrl=imageUrl(movie);
+    let img=heroArt.querySelector('img.hero-poster-image');
+    if(!posterUrl){
+      if(img)img.remove();
+      if(fallback){fallback.hidden=false;fallback.textContent=String(movie?.title||'R').slice(0,1).toUpperCase();}
+      heroArt.style.removeProperty('--hero-poster-blur');
+      return;
+    }
+    if(!img){
+      img=document.createElement('img');
+      img.className='hero-poster-image';
+      img.loading='eager';
+      img.decoding='async';
+      heroArt.insertBefore(img,fallback);
+    }
+    img.alt='Poster for '+String(movie.title||'selected title');
+    img.onerror=()=>{
+      img.remove();
+      if(fallback){fallback.hidden=false;fallback.textContent=String(movie?.title||'R').slice(0,1).toUpperCase();}
+      heroArt.style.removeProperty('--hero-poster-blur');
+    };
+    img.onload=()=>{if(fallback)fallback.hidden=true;};
+    heroArt.style.setProperty('--hero-poster-blur','url("'+posterUrl.replace(/["\\]/g,'')+'")');
+    if(img.src!==posterUrl)img.src=posterUrl;
+    else if(img.complete&&img.naturalWidth>0&&fallback)fallback.hidden=true;
+  }
+  function updateHero(index=heroIndex){
+    if(!featuredIds.length||!catalog.length){
+      selected=null;heroIndex=0;
+      $('#heroTitle').textContent='Find your next favourite film.';
+      $('#heroKicker').textContent='CURRENT MOVIES & SERIES';
+      $('#heroCopy').textContent='Load trending releases or search for a title. Available watch options depend on your region.';
+      $('#heroYear').textContent='NEW';$('#heroGenre').textContent='Trending · Popular · Upcoming';
+      setText('.quality-pill','DISCOVERY');
+      heroArt.style.backgroundImage='linear-gradient(130deg,#28203c,#09090d)';
+      syncHeroPoster({title:'Rapiflix',poster:''});
+      setText('.index-current','01');setText('.hero-index>span:last-child','01');
+      $('#heroPlay').disabled=true;$('#heroPlay').innerHTML='<span>⌕</span> Find movies';
+      return;
+    }
+    heroIndex=(index+featuredIds.length)%featuredIds.length;
+    selected=byId(featuredIds[heroIndex])||catalog[0];
+    heroIndex=featuredIds.indexOf(selected.id);
+    $('#heroPlay').disabled=false;
+    $('#heroPlay').innerHTML=selected.kind==='tmdb'?'<span>▶</span> Watch now':'<span>▶</span> Play free film';
+    $('#heroTitle').innerHTML=escapeHtml(selected.title).replace(/ (.+)/,'<br><em>$1</em>');
+    if(!$('#heroTitle').innerHTML.includes('<em>'))$('#heroTitle').innerHTML=escapeHtml(selected.title)+'<br><em>forever.</em>';
+    $('#heroKicker').textContent=(selected.tag||'FEATURED FILM')+' · RAPIFLIX SELECTION';
+    $('#heroCopy').textContent=selected.desc;
+    $('#heroYear').textContent=selected.year||'—';
+    $('#heroGenre').textContent=selected.genres.join(' · ');
+    setText('.quality-pill',selected.kind==='tmdb'?'WATCH OPTIONS':'IN-PLAYER');
+    heroArt.style.backgroundImage='linear-gradient(130deg,#28203c,#09090d)';
+    heroArt.style.backgroundColor='#1b1721';
+    syncHeroPoster(selected);
+    setText('.index-current',String(heroIndex+1).padStart(2,'0'));
+    setText('.hero-index>span:last-child',String(featuredIds.length).padStart(2,'0'));
+  }
+  function posterMarkup(m){
+    const url=imageUrl(m);
+    const blur=url?';--poster-blur:url(&quot;'+escapeHtml(url)+'&quot;)':'';
+    const image=url?'<img loading="lazy" decoding="async" src="'+escapeHtml(url)+'" alt="Poster for '+escapeHtml(m.title)+'" onerror="this.style.display=\'none\'" onload="this.previousElementSibling.style.display=\'none\'">':'';
+    return '<div class="poster-wrap" style="background:'+fallbackGradients[Math.abs(m.title.length)%fallbackGradients.length]+blur+'"><div class="poster-fallback"><div><span>'+(m.kind==='tmdb'?'MOVIE DISCOVERY':'FREE FILM LIBRARY')+'</span>'+escapeHtml(m.title)+'</div></div>'+image+'<div class="poster-overlay"></div><span class="poster-badge">'+escapeHtml(m.tag||'ARCHIVE PICK')+'</span><button class="save-card '+(saved.has(m.id)?'saved':'')+'" data-save="'+escapeHtml(m.id)+'" aria-label="'+(saved.has(m.id)?'Remove from':'Save to')+' my list">'+(saved.has(m.id)?'♥':'♡')+'</button><button class="card-play" data-details="'+escapeHtml(m.id)+'" aria-label="View '+escapeHtml(m.title)+'">▶</button></div>';
+  }
   function render(){
     const needle=query.trim().toLowerCase();
     const searchPool=needle?[...catalog,...tmdbSearchResults,...archiveSearchResults]:catalog;
