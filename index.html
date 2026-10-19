@@ -40,8 +40,8 @@
     <div class="loader-progress-row"><span id="loaderStatus">Tuning the cinematic universe</span><span id="progressNumber">00%</span></div>
     <div class="progress-track" role="progressbar" aria-label="Loading Rapiflix" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="loaderProgress"><span id="progressFill"></span><i></i></div>
     <div class="loader-foot"><span class="loader-live-dot"></span><span>YOUR NEXT STORY AWAITS</span><span id="loaderCounter">00:04</span></div>
-    <button type="button" class="portal-sound-toggle" id="portalSoundToggle" aria-pressed="false" aria-label="Enable cinematic loading sound"><span class="sound-icon" aria-hidden="true">♫</span><span id="portalSoundLabel">Enable cinematic sound</span><span class="sound-toggle-state">OFF</span></button>
-    <p class="portal-sound-note">Sound is optional and starts only after your tap. No surprise autoplay.</p>
+    <button type="button" class="portal-sound-toggle" id="portalSoundToggle" aria-pressed="true" aria-label="Disable cinematic loading sound"><span class="sound-icon" aria-hidden="true">♫</span><span id="portalSoundLabel">Cinematic sound enabled</span><span class="sound-toggle-state">ON</span></button>
+    <p class="portal-sound-note">Cinematic sound is on by default. Some browsers require your first tap before audio can play.</p>
   </div>
 </div>
 <header class="site-header">
@@ -100,7 +100,7 @@
   if (status) status.textContent = chosen.messages[0];
   const started = performance.now();
   const duration = reducedMotion ? 650 : 2450;
-  let soundEnabled = false, audioContext = null, finished = false, lastMessage = -1;
+  let soundEnabled = true, audioContext = null, finished = false, lastMessage = -1, soundPlayed = false;
   const soundPlans = {
     universe:[110,165,220,330], portal:[73,110,220,440], logo:[146,220,294,440],
     cube:[196,247,330,392], rocket:[98,147,196,392], reel:[130,196,261,349], cinema:[174,220,277,349]
@@ -138,28 +138,42 @@
     noise.connect(filter); filter.connect(gain); gain.connect(master);
     noise.start(now); noise.stop(now + 0.74);
   }
+  function syncSoundToggle() {
+    if (!soundButton) return;
+    soundButton.setAttribute('aria-pressed', String(soundEnabled));
+    soundButton.setAttribute('aria-label', soundEnabled ? 'Disable cinematic loading sound' : 'Enable cinematic loading sound');
+    if (soundLabel) soundLabel.textContent = soundEnabled ? 'Cinematic sound enabled' : 'Enable cinematic sound';
+    if (soundState) soundState.textContent = soundEnabled ? 'ON' : 'OFF';
+  }
+  async function startSoundFromGesture() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) throw new Error('Audio unavailable');
+      if (!audioContext) audioContext = new AudioCtx();
+      if (audioContext.state === 'suspended') await audioContext.resume();
+      soundEnabled = true;
+      syncSoundToggle();
+      if (!soundPlayed) { playSound(); soundPlayed = true; }
+    } catch (_) {
+      if (soundLabel) soundLabel.textContent = 'Tap to enable cinematic sound';
+    }
+  }
+  syncSoundToggle();
+  // Try autoplay where permitted; browsers that block it resume audio on the first interaction.
+  startSoundFromGesture();
+  const resumeOnFirstInteraction = () => {
+    if (soundEnabled && !soundPlayed) startSoundFromGesture();
+    window.removeEventListener('pointerdown', resumeOnFirstInteraction);
+    window.removeEventListener('keydown', resumeOnFirstInteraction);
+  };
+  window.addEventListener('pointerdown', resumeOnFirstInteraction, {once:true});
+  window.addEventListener('keydown', resumeOnFirstInteraction, {once:true});
   if (soundButton) soundButton.addEventListener('click', async () => {
-    if (!soundEnabled) {
-      try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) throw new Error('Audio unavailable');
-        if (!audioContext) audioContext = new AudioCtx();
-        if (audioContext.state === 'suspended') await audioContext.resume();
-        soundEnabled = true;
-        soundButton.setAttribute('aria-pressed', 'true');
-        soundButton.setAttribute('aria-label', 'Disable cinematic loading sound');
-        if (soundLabel) soundLabel.textContent = 'Cinematic sound enabled';
-        if (soundState) soundState.textContent = 'ON';
-        playSound();
-      } catch (_) {
-        if (soundLabel) soundLabel.textContent = 'Sound unavailable on this device';
-      }
+    if (!soundEnabled || !audioContext || audioContext.state !== 'running') {
+      await startSoundFromGesture();
     } else {
       soundEnabled = false;
-      soundButton.setAttribute('aria-pressed', 'false');
-      soundButton.setAttribute('aria-label', 'Enable cinematic loading sound');
-      if (soundLabel) soundLabel.textContent = 'Enable cinematic sound';
-      if (soundState) soundState.textContent = 'OFF';
+      syncSoundToggle();
       if (audioContext && audioContext.state === 'running') audioContext.suspend();
     }
   });
