@@ -900,23 +900,28 @@
   };
   ['#movieGrid','#freeMovieGrid'].forEach(selector=>$(selector)?.addEventListener('click',handleMovieGridClick));
   $('#savedToggle').addEventListener('click',()=>{showingSaved=!showingSaved;$('#savedToggle').style.borderColor=showingSaved?'var(--accent)':'';$('#savedToggle').innerHTML=`${showingSaved?'♥':'♡'} <span class="saved-count" id="savedCount">${saved.size}</span>`;document.querySelector('#library').scrollIntoView({behavior:'smooth'});render();});$('#loadMore').addEventListener('click',loadMore);$('#modalClose').addEventListener('click',()=>closeModal('#modalBackdrop'));$('#modalBackdrop').addEventListener('click',e=>{if(e.target===$('#modalBackdrop'))closeModal('#modalBackdrop');});$('#modalPlay').addEventListener('click',()=>playFilm(selected));$('#modalSave').addEventListener('click',()=>toggleSave(selected.id));$('#playerFullscreen').addEventListener('click',async()=>{
-    const frame=$('#playerFrame'),button=$('#playerFullscreen'),note=$('#playerFootNote');
-    const target=frame.querySelector('video')||frame.querySelector('iframe')||frame;
+    const dialog=$('.player-dialog'),frame=$('#playerFrame'),video=frame.querySelector('video'),button=$('#playerFullscreen'),note=$('#playerFootNote');
     try{
       if(document.fullscreenElement){await document.exitFullscreen();return;}
-      if(target.requestFullscreen)await target.requestFullscreen({navigationUI:'hide'});
-      else if(frame.requestFullscreen)await frame.requestFullscreen();
-      else if(target.webkitEnterFullscreen)target.webkitEnterFullscreen();
-      else throw new Error('Full screen is not supported by this browser.');
+      if(dialog&&dialog.requestFullscreen){
+        await dialog.requestFullscreen({navigationUI:'hide'});
+        if(note)note.textContent='';
+      }else if(video&&video.webkitEnterFullscreen){
+        video.webkitEnterFullscreen();
+      }else if(note){
+        note.textContent='Full screen is not supported by this browser for this source.';
+      }
     }catch(error){
-      if(note)note.textContent='Use the player’s own full-screen control if available.';
+      if(video&&video.webkitEnterFullscreen){try{video.webkitEnterFullscreen();return;}catch(_){}}
+      if(note)note.textContent='This source or browser blocked full screen. Try the player’s own full-screen control.';
     }
   });
   document.addEventListener('fullscreenchange',()=>{
-    const button=$('#playerFullscreen');if(!button)return;
-    const active=Boolean(document.fullscreenElement);
+    const button=$('#playerFullscreen'),dialog=$('.player-dialog');if(!button)return;
+    const active=Boolean(document.fullscreenElement&&(document.fullscreenElement===dialog||dialog?.contains(document.fullscreenElement)));
     button.setAttribute('aria-label',active?'Exit full screen':'Enter full screen');
-    button.innerHTML=active?'⛶ <span>Exit full screen</span>':'⛶ <span>Full screen</span>';
+    button.setAttribute('title',active?'Exit full screen':'Enter full screen');
+    button.innerHTML=active?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4m8 0h4v4M8 20H4v-4m16 0v4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H4a1 1 0 0 0-1 1v4m13-5h4a1 1 0 0 1 1 1v4M3 16v4a1 1 0 0 0 1 1h4m13-5v4a1 1 0 0 1-1 1h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   });
   $('#playerClose').addEventListener('click',()=>{const v=$('#playerFrame video');if(v)v.pause();if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});$('#playerFrame').replaceChildren();closeModal('#playerBackdrop');});$('#playerBackdrop').addEventListener('click',e=>{if(e.target===$('#playerBackdrop')){$('#playerClose').click();}});$('#menuButton').addEventListener('click',()=>$('.nav-links').classList.toggle('open'));$('.nav-links').addEventListener('click',e=>{if(e.target.closest('a'))$('.nav-links').classList.remove('open');});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#playerBackdrop').hidden)$('#playerClose').click();else closeModal('#modalBackdrop');}if(e.key==='/'&&!/input|textarea/i.test(document.activeElement.tagName)){e.preventDefault();$('#searchInput').focus();}});
   // Subtle pointer-responsive poster tilt, with no distracting glow effects.
