@@ -906,15 +906,25 @@
     $('#detailWatchNow').disabled=true;$('#detailTrailer').hidden=true;$('#detailFacts').replaceChildren();
     const base=media+'/'+encodeURIComponent(id);
     try{
-      const endpoints=[base,base+'/credits',base+'/recommendations',base+'/similar',base+'/videos',base+'/watch/providers'];
-      const responses=await Promise.all(endpoints.map(path=>tmdbRequest(path,{language:'en-US'}).then(async response=>({ok:response.ok,data:await response.json()})).catch(()=>({ok:false,data:{}}))));
+      // Fetch the title itself first so Watch now becomes usable without waiting
+      // for optional cast, recommendations, trailer and provider metadata.
+      const baseResponse=await tmdbRequest(base,{language:'en-US'}).then(async response=>({ok:response.ok,data:await response.json()}));
       if(activeDetailRequest!==requestKey)return;
-      const detail=responses[0].data;
-      if(!responses[0].ok||!detail||!detail.id)throw new Error('Rapiflix could not load this title from TMDB.');
+      const detail=baseResponse.data;
+      if(!baseResponse.ok||!detail||!detail.id)throw new Error('Rapiflix could not load this title from TMDB.');
       const isTv=media==='tv', title=isTv?(detail.name||detail.original_name):(detail.title||detail.original_title), release=isTv?detail.first_air_date:detail.release_date;
       detailMovie=mapTmdbMovie({...detail,genre_ids:(detail.genres||[]).map(g=>g.id)},'DETAIL',media);
       detailMovie.title=title||titleFallback;detailMovie.year=Number(String(release||'').slice(0,4))||0;detailMovie.desc=detail.overview||'No synopsis has been provided for this title.';detailMovie.runtime=isTv?((detail.episode_run_time||[])[0]?detail.episode_run_time[0]+' min per episode':'TV series'):(detail.runtime?detail.runtime+' min':'Runtime unavailable');detailMovie.genres=(detail.genres||[]).map(g=>g.name);detailMovie.originalLanguage=detail.original_language||'';detailMovie.poster=detailImage(detail.poster_path,'w500');detailMovie.backdrop=detailImage(detail.backdrop_path,'original');detailMovie.kind='tmdb';detailMovie.mediaType=media;detailMovie.tmdbId=Number(detail.id);detailMovie.id='tmdb-'+(isTv?'tv-':'')+detail.id;
       selected=detailMovie;
+      $('#detailWatchNow').disabled=false;
+      $('#detailWatchNow').innerHTML='▶ <span>Watch now</span>';
+      const extraEndpoints=[base+'/credits',base+'/recommendations',base+'/similar',base+'/videos',base+'/watch/providers'];
+      const extras=await Promise.all(extraEndpoints.map(path=>Promise.race([
+        tmdbRequest(path,{language:'en-US'}).then(async response=>({ok:response.ok,data:await response.json()})),
+        new Promise(resolve=>setTimeout(()=>resolve({ok:false,data:{}}),7000))
+      ]).catch(()=>({ok:false,data:{}}))));
+      if(activeDetailRequest!==requestKey)return;
+      const responses=[baseResponse,...extras];
       document.title=title+' | Full Details | Rapiflix';
       const meta=document.querySelector('meta[name="description"]');if(meta)meta.content='Explore '+title+' on Rapiflix: synopsis, cast, production, ratings, budget, related titles and viewing options.';
       $('#detailTitle').textContent=title||titleFallback;
