@@ -728,3 +728,18 @@ html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
 
 /* Keep the logo fragments centered while their independent translate values animate. */
 .scene-logo .logo-fragment{transform:translate(-50%,-50%)}
+
+
+/* Loader hardening: prevent legacy Rapiflix logo-loader effects from leaking into the new scenes. */
+.loading-curtain.loader-random-scene::before,
+.loading-curtain.loader-random-scene::after{content:none!important;display:none!important;animation:none!important}
+.loading-curtain.loader-random-scene .loader-brand,
+.loading-curtain.loader-random-scene .loader-brand .chevrons,
+.loading-curtain.loader-random-scene .loader-brand .loader-word,
+.loading-curtain.loader-random-scene .loader-brand .loader-word span{animation:none!important;transform:none!important;translate:none!important;filter:none}
+.loading-curtain.loader-random-scene .loader-brand .loader-word{display:inline-flex;overflow:visible;opacity:1}
+.loading-curtain.loader-random-scene .loader-brand .loader-word span{opacity:1;display:inline-block}
+.loading-curtain.loader-random-scene .loader-visual{z-index:2;min-width:0}
+.loading-curtain.loader-random-scene .loader-scene{visibility:hidden;opacity:0;pointer-events:none}
+.loading-curtain.loader-random-scene .loader-scene.is-active{display:block!important;visibility:visible;opacity:1;pointer-events:auto}
+.loading-curtain.loader-random-scene .loader-copy{z-index:4}
