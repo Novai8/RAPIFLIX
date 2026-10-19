@@ -903,12 +903,15 @@
     const titleFallback=(route.slug||'').replace(/-/g,' ')||'Loading title…';
     $('#detailTitle').textContent=titleFallback;$('#detailOverview').textContent='Gathering the story, cast, production details and viewing information.';
     $('#detailCast').innerHTML='<p class="detail-loading">Finding the cast…</p>';$('#detailCrew').innerHTML='<p class="detail-loading">Finding key crew…</p>';$('#detailProduction').innerHTML='<p class="detail-loading">Loading production details…</p>';$('#detailRecommendations').innerHTML='<p class="detail-loading">Finding related titles…</p>';
-    $('#detailWatchNow').disabled=true;$('#detailTrailer').hidden=true;$('#detailFacts').replaceChildren();
+    $('#detailWatchNow').disabled=true;$('#detailWatchNow').innerHTML='Loading title…';$('#detailTrailer').hidden=true;$('#detailFacts').replaceChildren();
     const base=media+'/'+encodeURIComponent(id);
     try{
       // Fetch the title itself first so Watch now becomes usable without waiting
       // for optional cast, recommendations, trailer and provider metadata.
-      const baseResponse=await tmdbRequest(base,{language:'en-US'}).then(async response=>({ok:response.ok,data:await response.json()}));
+      const baseResponse=await Promise.race([
+        tmdbRequest(base,{language:'en-US'}).then(async response=>({ok:response.ok,data:await response.json()})),
+        new Promise(resolve=>setTimeout(()=>resolve({ok:false,data:{status_message:'The title service took too long to respond.'}}),10000))
+      ]);
       if(activeDetailRequest!==requestKey)return;
       const detail=baseResponse.data;
       if(!baseResponse.ok||!detail||!detail.id)throw new Error('Rapiflix could not load this title from TMDB.');
@@ -975,13 +978,13 @@
       // playback to initialize twice and saved-list clicks to toggle twice.
     }catch(error){
       if(activeDetailRequest!==requestKey)return;
-      $('#detailTitle').textContent=titleFallback;$('#detailOverview').textContent='We could not load the full title profile. Check the TMDB connection and try opening this title again.';$('#detailWatchNow').disabled=true;
+      $('#detailTitle').textContent=titleFallback;$('#detailOverview').textContent='The title service did not respond in time or could not find this title. Check your connection, then retry. Your page is still available.';$('#detailWatchNow').disabled=false;$('#detailWatchNow').textContent='↻ Retry loading title';
       $('#detailCast').innerHTML='<p class="detail-loading">Cast information is unavailable right now.</p>';$('#detailCrew').innerHTML='<p class="detail-loading">Crew information is unavailable right now.</p>';$('#detailProduction').innerHTML='<p class="detail-loading">Production information is unavailable right now.</p>';$('#detailRecommendations').innerHTML='<p class="detail-loading">Related titles are unavailable right now.</p>';
       console.warn('Rapiflix title profile failed to load.',error);
     }
   }
   document.addEventListener('rapiflix:detail-page',event=>loadTitleExperience(event.detail||{}));
-  $('#detailWatchNow').addEventListener('click',()=>{if(detailMovie)playFilm(detailMovie);});
+  $('#detailWatchNow').addEventListener('click',()=>{if(detailMovie){playFilm(detailMovie);return;}const params=new URLSearchParams(location.search);loadTitleExperience({id:params.get('id')||'',type:params.get('type')||'movie',slug:location.pathname.split('/').filter(Boolean).pop()||''});});
   $('#detailSave').addEventListener('click',()=>{if(detailMovie){toggleSave(detailMovie.id);$('#detailSave').textContent=saved.has(detailMovie.id)?'♥ Saved to my list':'♡ Save to my list';}});
   $('#heroPlay').addEventListener('click',()=>{if(selected)playFilm(selected);else loadTmdb('trending/movie/week','Trending');});$('#heroDetails').addEventListener('click',()=>{if(selected)openDetails(selected.id);else loadTmdb('trending/movie/week','Trending');});$('#genreFilter').addEventListener('change',e=>{activeGenre=e.target.value;renderChips();render();});$('#eraFilter').addEventListener('change',e=>{activeEra=e.target.value;render();});$('#genreChips').addEventListener('click',e=>{const b=e.target.closest('[data-genre]');if(!b)return;activeGenre=b.dataset.genre;$('#genreFilter').value=activeGenre;renderChips();render();});$('#sortButton').addEventListener('click',()=>{sortNewest=!sortNewest;$('#sortButton').innerHTML=`↕ <span>${sortNewest?'Newest first':'Featured'}</span>`;render();});const handleMovieGridClick=e=>{
     const saveBtn=e.target.closest('[data-save]');
