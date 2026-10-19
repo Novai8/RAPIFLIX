@@ -1,7 +1,7 @@
 # Rapiflix recovery report
 
-**Branch:** fix/rapiflix-recovery
-**Base:** main
+**Branch:** fix/rapiflix-recovery  
+**Base:** main  
 **Scope:** repair the popup → title details → existing player flow, unblock API contracts, stop poster cropping, and add automated regression checks.
 
 ## 1. Ground truth and baseline
