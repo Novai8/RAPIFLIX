@@ -96,7 +96,7 @@ The checkpoint does not prove the original site actually ran at that point. Ther
 - tests/recovery-contract.test.mjs: Node built-in test runner, no third-party dependency needed.
 - .github/workflows/rapiflix-recovery-contracts.yml: Node 22 job on the recovery branch and pull requests to main.
 - Tests assert JSON status/shape contracts, missing-secret handling, endpoint allowlists, upstream status propagation, cache headers, error behavior, health shape, details route wiring, loading/timeout contracts, hidden-overlay CSS and poster contain rules.
-- The current test cases were run in an in-memory JavaScript harness against the fetched handlers with mocked upstream calls: **44/44 passed** at the last full run, before the newest route/health assertions were added. The GitHub Actions Node runner and the final test revision still need a reported CI result on the pull request.
+- GitHub Actions run [39319827053](https://github.com/Novai8/RAPIFLIX/actions/runs/39319827053) completed successfully with **44 tests passed, 0 failed**, using Node 22 and mocked upstream handlers. The job includes the route/health assertions on the current PR head.
 
 ## 5. Checks that still require production/staging access
 
