@@ -1021,8 +1021,8 @@ html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
 .player-heading{display:flex;align-items:center;gap:10px;min-width:0}
 .player-heading strong{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(14px,2vw,18px)}
 .player-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
-.player-fullscreen{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:9px 13px;border:1px solid #ffffff26;border-radius:11px;background:#ffffff0b;color:var(--fg);font:inherit;font-size:13px;font-weight:650;cursor:pointer;touch-action:manipulation}
-.player-fullscreen:hover,.player-fullscreen:focus-visible{background:var(--accent);color:#08080c;outline:2px solid transparent}
+.player-fullscreen{display:inline-grid;place-items:center;width:42px;height:42px;min-width:42px;padding:0;border:1px solid #ffffff22;border-radius:12px;background:#ffffff08;color:var(--fg);cursor:pointer;touch-action:manipulation;transition:background .18s ease,border-color .18s ease,transform .18s ease}
+.player-fullscreen:hover{background:var(--accent);border-color:var(--accent);color:#08080c;transform:translateY(-1px)}.player-fullscreen:active{transform:scale(.96)}.player-fullscreen svg{display:block;width:20px;height:20px}
 .player-fullscreen:focus-visible,.player-actions button:focus-visible,.player-controls button:focus-visible,.player-controls select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .player-frame{position:relative;flex:0 0 auto;width:100%;height:auto;aspect-ratio:16/9;min-height:0;max-height:calc(100dvh - 190px);border-radius:14px;overflow:hidden;background:#000;isolation:isolate}
 .player-frame iframe,.player-frame video{display:block;width:100%!important;height:100%!important;min-height:0!important;max-height:100%;border:0;background:#000;object-fit:contain}
