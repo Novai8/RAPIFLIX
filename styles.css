@@ -959,3 +959,43 @@ html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
     visibility: visible !important;
   }
 }
+
+
+/* Ultra-detail pass: give every randomized intro its own cinematic environment. */
+.loading-curtain.loader-random-scene .loader-scene{background:radial-gradient(ellipse at 50% 48%,#111321 0%,#080910 58%,#050609 100%)}
+.loading-curtain.loader-random-scene .loader-scene::before,
+.loading-curtain.loader-random-scene .loader-scene::after{content:"";position:absolute;pointer-events:none;display:block;z-index:0}
+.loading-curtain.loader-random-scene .loader-scene::before{inset:7%;border:1px solid #ffffff12;border-radius:50%;opacity:.8;mask-image:radial-gradient(ellipse,#000 35%,transparent 76%)}
+.loading-curtain.loader-random-scene .loader-scene::after{inset:0;opacity:.72;mix-blend-mode:screen;mask-image:radial-gradient(ellipse at center,#000 0%,#000 42%,transparent 78%)}
+.loading-curtain.loader-random-scene .loader-scene>*{z-index:1}
+.scene-universe{background:radial-gradient(ellipse at 50% 46%,#24164c 0%,#0b0c1c 43%,#050609 78%)!important}
+.scene-universe::before{inset:5%!important;border:1px solid #a58aff35!important;border-radius:50%!important;box-shadow:0 0 0 18px #986dff08,0 0 0 42px #986dff06,0 0 70px #8d66ff12;animation:detail-orbit 18s linear infinite}
+.scene-universe::after{background:radial-gradient(circle at 18% 24%,#fff 0 1px,transparent 2px),radial-gradient(circle at 74% 19%,#f9c7ff 0 1px,transparent 2px),radial-gradient(circle at 84% 68%,#fff 0 1.5px,transparent 2.5px),radial-gradient(circle at 22% 77%,#c8bbff 0 1px,transparent 2px),radial-gradient(circle at 63% 82%,#fff 0 1px,transparent 2px),radial-gradient(circle at 35% 13%,#fff 0 1px,transparent 2px),radial-gradient(ellipse at 50% 100%,#7955ff22,transparent 55%);background-size:100% 100%;animation:detail-twinkle 3s ease-in-out infinite alternate}
+.scene-portal{background:radial-gradient(ellipse at 50% 55%,#34174c 0%,#100d25 42%,#050609 78%)!important}
+.scene-portal::before{inset:4% 13%!important;border:1px solid #ffb18a2b!important;border-radius:50%!important;box-shadow:0 0 0 15px #ff8a5e08,0 0 0 34px #a86bff09,0 0 75px #b05cff22;animation:detail-orbit 12s linear infinite reverse}
+.scene-portal::after{inset:8% 0!important;background:linear-gradient(105deg,transparent 0 39%,#ffbb9a12 48%,#fff5e81c 50%,#8b67ff12 54%,transparent 65%);transform:translateX(-110%);animation:detail-sweep 3.6s ease-in-out infinite}
+.scene-logo{background:radial-gradient(ellipse at 50% 44%,#1e2040 0%,#0b0d18 52%,#050609 82%)!important}
+.scene-logo::before{inset:12% 5%!important;border:1px solid #a89aff24!important;border-radius:18px!important;background:linear-gradient(#b5a1ff0b 1px,transparent 1px),linear-gradient(90deg,#b5a1ff0b 1px,transparent 1px);background-size:26px 26px;transform:perspective(500px) rotateX(12deg);mask-image:linear-gradient(transparent,#000 22%,#000 78%,transparent)}
+.scene-logo::after{inset:18% 25%!important;border:1px solid #ffb18a35!important;border-radius:50%!important;box-shadow:0 0 0 12px #ffb18a08,0 0 0 26px #a18bff0a;animation:detail-pulse 2.8s ease-out infinite}
+.scene-cube{background:radial-gradient(ellipse at 50% 47%,#163346 0%,#0b101b 47%,#050609 80%)!important}
+.scene-cube::before{inset:48% -10% -15%!important;border:0!important;border-radius:0!important;background:linear-gradient(#67d9ff20 1px,transparent 1px),linear-gradient(90deg,#67d9ff20 1px,transparent 1px);background-size:28px 28px;transform:perspective(320px) rotateX(64deg) scale(1.15);transform-origin:top center;mask-image:linear-gradient(#000,transparent 78%);animation:detail-floor 5s linear infinite}
+.scene-cube::after{inset:10% 23% 15%!important;border:1px solid #71dfff30!important;border-radius:46%!important;box-shadow:0 0 0 16px #71dfff08,0 0 0 34px #71dfff06,0 0 65px #41caff12;transform:rotate(-24deg);animation:detail-orbit 15s linear infinite}
+.scene-rocket{background:radial-gradient(ellipse at 48% 48%,#331b45 0%,#100d20 47%,#050609 80%)!important}
+.scene-rocket::before{inset:7% 2%!important;border:1px solid #ffae8b20!important;border-radius:50%!important;transform:rotate(-24deg) scaleY(.58);box-shadow:0 0 0 18px #ff9d7a06;animation:detail-orbit 16s linear infinite}
+.scene-rocket::after{inset:0!important;background:radial-gradient(circle at 14% 22%,#fff 0 1px,transparent 2px),radial-gradient(circle at 76% 14%,#ffccab 0 1px,transparent 2px),radial-gradient(circle at 88% 72%,#fff 0 1px,transparent 2px),radial-gradient(circle at 25% 78%,#c7a4ff 0 1px,transparent 2px),linear-gradient(118deg,transparent 0 45%,#ff9d7a12 49%,#ff9d7a00 56%);animation:detail-twinkle 2.5s ease-in-out infinite alternate}
+.scene-reel{background:radial-gradient(ellipse at 50% 45%,#382014 0%,#181018 46%,#050609 80%)!important}
+.scene-reel::before{inset:8% 19%!important;border:2px dashed #ffc28d36!important;border-radius:50%!important;box-shadow:0 0 0 15px #ffb77a08,0 0 0 34px #ffb77a05;animation:detail-orbit 28s linear infinite}
+.scene-reel::after{inset:12% 28%!important;border:1px solid #ffbb8a28!important;border-radius:50%!important;box-shadow:0 0 0 8px #ffbb8a08,0 0 45px #ff8b5b12;animation:detail-pulse 3.2s ease-in-out infinite}
+.scene-cinema{background:radial-gradient(ellipse at 50% 58%,#4a1b31 0%,#1a0d1d 45%,#050609 82%)!important}
+.scene-cinema::before{inset:12% 6% 5%!important;border:1px solid #ffb87d30!important;border-radius:50% 50% 12px 12px!important;background:repeating-linear-gradient(90deg,transparent 0 20px,#ffb87d08 21px 22px);box-shadow:inset 0 -40px 70px #ff8a4b0c,0 0 50px #ff8a4b0c;mask-image:linear-gradient(transparent,#000 20%,#000)}
+.scene-cinema::after{inset:0!important;background:conic-gradient(from 245deg at 50% 25%,transparent 0deg,#ffd9a00b 16deg,transparent 30deg,#ffd9a00b 43deg,transparent 59deg);animation:detail-sweep 5s ease-in-out infinite}
+.loader-sky i{filter:drop-shadow(0 0 5px #b9a0ff);animation:detail-star-drift 9s ease-in-out infinite alternate}
+.loader-sky i:nth-child(3n){animation-delay:-3s}
+.loader-sky i:nth-child(4n){animation-delay:-6s}
+@keyframes detail-orbit{to{transform:rotate(360deg)}}
+@keyframes detail-twinkle{from{opacity:.35;filter:brightness(.8)}to{opacity:.9;filter:brightness(1.4)}}
+@keyframes detail-sweep{0%,100%{opacity:.25;translate:-5% 0}50%{opacity:.9;translate:5% 0}}
+@keyframes detail-pulse{0%,100%{scale:.96;opacity:.35}50%{scale:1.04;opacity:.85}}
+@keyframes detail-floor{to{background-position:0 28px,28px 0}}
+@keyframes detail-star-drift{from{translate:0 -3px;opacity:.2}to{translate:0 8px;opacity:.75}}
+#playerControls [hidden]{display:none!important}
