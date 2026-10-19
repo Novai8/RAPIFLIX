@@ -96,7 +96,7 @@ The checkpoint does not prove the original site actually ran at that point. Ther
 - tests/recovery-contract.test.mjs: Node built-in test runner, no third-party dependency needed.
 - .github/workflows/rapiflix-recovery-contracts.yml: Node 22 job on the recovery branch and pull requests to main.
 - Tests assert JSON status/shape contracts, missing-secret handling, endpoint allowlists, upstream status propagation, cache headers, error behavior, health shape, details route wiring, loading/timeout contracts, hidden-overlay CSS and poster contain rules.
-- GitHub Actions run [39319827053](https://github.com/Novai8/RAPIFLIX/actions/runs/39319827053) completed successfully with **44 tests passed, 0 failed**, using Node 22 and mocked upstream handlers. The job includes the route/health assertions on the current PR head.
+- GitHub Actions run [39319981794](https://github.com/Novai8/RAPIFLIX/actions/runs/39319981794) completed successfully with **44 tests passed, 0 failed**, using Node 22 and mocked upstream handlers. This run corresponds to the PR head at the time of the check and includes the route/health assertions.
 
 ## 5. Checks that still require production/staging access
 
@@ -105,3 +105,4 @@ The checkpoint does not prove the original site actually ran at that point. Ther
 3. In Cloudflare Pages settings, check that TMDB_API_KEY and, if used, CINEPRO_BASE_URL are configured as encrypted secrets/variables on the production project.
 4. Check Cloudflare Pages deployment logs and set rate-limiting rules for /api/tmdb/* and /api/cinepro/* if traffic policy requires them.
 5. Smoke-test both a movie and a TV episode end-to-end. Third-party player availability cannot be validated by a mocked API contract test.
+6. Cloudflare's PR comment reported a successful Pages preview deployment for commit 3b7ac2c, with the branch preview at https://fix-rapiflix-recovery.rapiflix.pages.dev. Direct inspection through the available web/container network was unavailable, so the deployment bot status is recorded but not represented as a manual browser smoke test.
