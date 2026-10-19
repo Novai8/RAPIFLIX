@@ -481,7 +481,7 @@ html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
   .header-actions { width:100%; margin-left:0; display:grid; grid-template-columns:minmax(0,1fr) 44px; gap:8px; }
   .cross-site-cta { grid-column:1 / -1; justify-self:start; min-height:38px; font-size:12px; }
   .search-wrap,.search-wrap:focus-within { width:100%; min-width:0; height:44px; }
-  .search-suggestions { position:fixed; top:auto; left:12px; right:12px; bottom:auto; width:auto; max-height:min(54dvh,420px); z-index:10000; }
+  .search-suggestions { position:absolute; top:calc(100% + 10px); left:0; right:0; bottom:auto; width:auto; max-height:min(54dvh,420px); z-index:10000; }
   .tabs { order:initial; width:100%; overflow-x:auto; justify-content:flex-start; scrollbar-width:none; }
   .tabs::-webkit-scrollbar,.tmdb-actions::-webkit-scrollbar { display:none; }
   .tabs a { flex:1 0 auto; min-height:40px; padding:11px 13px; }
