@@ -1261,3 +1261,7 @@ html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
 }
 
 .detail-season-chip{font:600 12px/1.3 "DM Sans",system-ui,sans-serif}
+
+.detail-poster-wrap{position:relative;isolation:isolate;background:#101117}
+.detail-poster-wrap::before{content:"";position:absolute;inset:-24px;z-index:-1;background:var(--detail-poster-blur,none) center/cover no-repeat;filter:blur(24px) saturate(1.2);opacity:.7;transform:scale(1.1);pointer-events:none}
+.detail-poster-wrap img{position:relative;z-index:1;background:transparent}
