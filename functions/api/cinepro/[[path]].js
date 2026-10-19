@@ -97,7 +97,12 @@ export async function onRequest(context) {
     }).filter(Boolean);
 
     return jsonResponse(body, 200);
-  } catch (_) {
+  } catch (error) {
+    // Do not log upstream URLs, source URLs, or environment variable values.
+    console.error("Rapiflix CinePro upstream request failed", {
+      path,
+      errorName: error instanceof Error ? error.name : "UnknownError"
+    });
     return jsonResponse({ error: "The configured CinePro service could not be reached." }, 502);
   }
 }
