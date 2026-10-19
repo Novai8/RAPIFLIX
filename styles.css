@@ -1165,6 +1165,11 @@ html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
  .detail-related-card>strong{font-size:11px}
 }
 
+.hero-poster {
+  background-size: cover, contain !important;
+  background-position: center, center !important;
+  background-repeat: no-repeat, no-repeat !important;
+}
 /* Recovery: all poster artwork must remain fully visible rather than being zoom-cropped. */
 .hero-poster img,
 .movie-card img,
