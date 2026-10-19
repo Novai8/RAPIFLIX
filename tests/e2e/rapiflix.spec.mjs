@@ -4,6 +4,7 @@ const fixtureImage = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height=
 
 async function prepare(page, width = 1440) {
   await page.setViewportSize({ width, height: width < 500 ? 800 : 900 });
+  await page.emulateMedia({ colorScheme: 'dark' });
   const browserErrors = [];
   page.on('pageerror', error => browserErrors.push(`pageerror: ${error.message}`));
   page.on('console', message => {
