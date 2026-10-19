@@ -888,6 +888,125 @@
     }
   });
 
+  let activeDetailRequest='', detailMovie=null;
+  const detailImage=(path,size='w500')=>path?'https://image.tmdb.org/t/p/'+size+path:'';
+  const detailMoney=value=>Number(value)>0?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(Number(value)):'Not reported';
+  const detailDate=value=>{if(!value)return 'Not announced';const d=new Date(value+'T00:00:00');return Number.isNaN(d.getTime())?String(value):d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});};
+  async function loadTitleExperience(route){
+    const id=String(route.id||'').replace(/[^0-9]/g,'');
+    const media=route.type==='tv'?'tv':'movie';
+    const requestKey=media+':'+id;
+    if(!id){$('#detailTitle').textContent='Title not found';$('#detailOverview').textContent='This title link is missing its catalogue ID. Return to Rapiflix and open the title again.';$('#detailWatchNow').disabled=true;return;}
+    if(activeDetailRequest===requestKey&&detailMovie)return;
+    activeDetailRequest=requestKey;detailMovie=null;
+    const titleFallback=(route.slug||'').replace(/-/g,' ')||'Loading title…';
+    $('#detailTitle').textContent=titleFallback;$('#detailOverview').textContent='Gathering the story, cast, production details and viewing information.';
+    $('#detailCast').innerHTML='<p class="detail-loading">Finding the cast…</p>';$('#detailCrew').innerHTML='<p class="detail-loading">Finding key crew…</p>';$('#detailProduction').innerHTML='<p class="detail-loading">Loading production details…</p>';$('#detailRecommendations').innerHTML='<p class="detail-loading">Finding related titles…</p>';
+    $('#detailWatchNow').disabled=false;$('#detailWatchNow').innerHTML='▶ <span>Watch now</span>';$('#detailTrailer').hidden=true;$('#detailFacts').replaceChildren();
+    const base=media+'/'+encodeURIComponent(id);
+    try{
+      // Fetch the title itself first so Watch now becomes usable without waiting
+      // for optional cast, recommendations, trailer and provider metadata.
+      const baseResponse=await Promise.race([
+        tmdbRequest(base,{language:'en-US'}).then(async response=>({ok:response.ok,data:await response.json()})),
+        new Promise(resolve=>setTimeout(()=>resolve({ok:false,data:{status_message:'The title service took too long to respond.'}}),10000))
+      ]);
+      if(activeDetailRequest!==requestKey)return;
+      const detail=baseResponse.data;
+      if(!baseResponse.ok||!detail||!detail.id)throw new Error('Rapiflix could not load this title from TMDB.');
+      const isTv=media==='tv', title=isTv?(detail.name||detail.original_name):(detail.title||detail.original_title), release=isTv?detail.first_air_date:detail.release_date;
+      detailMovie=mapTmdbMovie({...detail,genre_ids:(detail.genres||[]).map(g=>g.id)},'DETAIL',media);
+      detailMovie.title=title||titleFallback;detailMovie.year=Number(String(release||'').slice(0,4))||0;detailMovie.desc=detail.overview||'No synopsis has been provided for this title.';detailMovie.runtime=isTv?((detail.episode_run_time||[])[0]?detail.episode_run_time[0]+' min per episode':'TV series'):(detail.runtime?detail.runtime+' min':'Runtime unavailable');detailMovie.genres=(detail.genres||[]).map(g=>g.name);detailMovie.originalLanguage=detail.original_language||'';detailMovie.poster=detailImage(detail.poster_path,'w500');detailMovie.backdrop=detailImage(detail.backdrop_path,'original');detailMovie.kind='tmdb';detailMovie.mediaType=media;detailMovie.tmdbId=Number(detail.id);detailMovie.id='tmdb-'+(isTv?'tv-':'')+detail.id;
+      selected=detailMovie;
+      $('#detailWatchNow').disabled=false;
+      $('#detailWatchNow').innerHTML='▶ <span>Watch now</span>';
+      const extraEndpoints=[base+'/credits',base+'/recommendations',base+'/similar',base+'/videos',base+'/watch/providers'];
+      // Start optional profile requests in parallel, but never hold the visible title page hostage to them.
+      const extrasPromise=Promise.all(extraEndpoints.map(path=>Promise.race([
+        tmdbRequest(path,{language:'en-US'}).then(async response=>({ok:response.ok,data:await response.json()})),
+        new Promise(resolve=>setTimeout(()=>resolve({ok:false,data:{}}),7000))
+      ]).catch(()=>({ok:false,data:{}}))));
+      if(activeDetailRequest!==requestKey)return;
+      document.title=title+' | Full Details | Rapiflix';
+      const meta=document.querySelector('meta[name="description"]');if(meta)meta.content='Explore '+title+' on Rapiflix: synopsis, cast, production, ratings, budget, related titles and viewing options.';
+      $('#detailTitle').textContent=title||titleFallback;
+      $('#detailEyebrow').textContent=[isTv?'SERIES PROFILE':'FEATURE FILM PROFILE',detail.status].filter(Boolean).join(' · ').toUpperCase();
+      $('#detailOverview').textContent=detail.overview||'No synopsis is available yet. Explore the cast, creative team and production information below.';
+      const poster=$('#detailPoster');poster.src=detailMovie.poster||'';poster.alt=(title||'Title')+' poster';poster.hidden=!detailMovie.poster;
+      const backdrop=$('#detailBackdrop');if(detailMovie.backdrop)backdrop.style.backgroundImage='url("'+detailMovie.backdrop.replace(/["\\]/g,'')+'")';else backdrop.style.backgroundImage='none';
+      const score=Number(detail.vote_average)>0?Number(detail.vote_average).toFixed(1)+'/10':'Not rated';
+      const runtime=isTv?(detail.number_of_seasons?detail.number_of_seasons+' season'+(detail.number_of_seasons===1?'':'s'):'Series'):(detail.runtime?detail.runtime+' min':'Runtime unavailable');
+      $('#detailMeta').innerHTML='<span class="detail-rating">★ '+escapeHtml(score)+'</span><span>'+escapeHtml(String(release||'Release date unknown').slice(0,4))+'</span><span>'+escapeHtml(runtime)+'</span><span>'+escapeHtml((detail.genres||[]).slice(0,3).map(g=>g.name).join(' · ')||'Genre unlisted')+'</span>';
+      const facts=[
+        ['BUDGET',detailMoney(detail.budget)],
+        [isTv?'EPISODES':'BOX OFFICE',isTv?(detail.number_of_episodes?Number(detail.number_of_episodes).toLocaleString('en-US'):'Not reported'):detailMoney(detail.revenue)],
+        ['RELEASE',detailDate(release)],
+        [isTv?'SEASONS':'RUNTIME',isTv?(detail.number_of_seasons?String(detail.number_of_seasons):'Not reported'):(detail.runtime?detail.runtime+' minutes':'Not reported')],
+        ['LANGUAGE',detail.original_language?languageName(detail.original_language):'Not reported'],
+        ['STATUS',detail.status||'Not reported']
+      ];
+      $('#detailFacts').innerHTML=facts.map(([label,value])=>'<div class="detail-fact"><span>'+escapeHtml(label)+'</span><strong>'+escapeHtml(String(value))+'</strong></div>').join('');
+      $('#detailWatchNow').disabled=false;$('#detailWatchNow').innerHTML='▶ <span>Watch now</span>';
+      $('#detailSave').textContent=saved.has(detailMovie.id)?'♥ Saved to my list':'♡ Save to my list';
+      const extras=await extrasPromise;
+      if(activeDetailRequest!==requestKey)return;
+      const responses=[baseResponse,...extras];
+      const videos=(responses[4].data.results||[]).filter(v=>v&&v.site==='YouTube'&&v.key&&/^[A-Za-z0-9_-]{6,20}$/.test(v.key));
+      const trailer=videos.find(v=>v.type==='Trailer'&&v.official===true)||videos.find(v=>v.type==='Trailer')||videos.find(v=>v.type==='Teaser');
+      const trailerLink=$('#detailTrailer');if(trailer){trailerLink.href='https://www.youtube.com/watch?v='+encodeURIComponent(trailer.key);trailerLink.hidden=false;}
+      const credits=responses[1].data||{}, cast=(credits.cast||[]).slice(0,12);
+      $('#detailCastCount').textContent=(credits.cast||[]).length?String((credits.cast||[]).length)+' credited performers':'CAST';
+      $('#detailCast').innerHTML=cast.length?cast.map(person=>'<article class="detail-person"><div class="detail-person-image">'+(person.profile_path?'<img loading="lazy" src="'+escapeHtml(detailImage(person.profile_path,'w185'))+'" alt="">':'<span>'+escapeHtml((person.name||'?').slice(0,1))+'</span>')+'</div><strong>'+escapeHtml(person.name||'Unknown performer')+'</strong><span>'+escapeHtml(person.character||person.roles?.[0]?.character||'Cast')+'</span></article>').join(''):'<p class="detail-loading">Cast information has not been listed for this title.</p>';
+      const crew=credits.crew||[];
+      const priorities=isTv?['Creator','Executive Producer','Director','Writer','Producer']:['Director','Screenplay','Writer','Producer','Director of Photography','Original Music Composer'];
+      const keyCrew=priorities.map(job=>crew.find(p=>p.job===job||p.jobs?.some(j=>j.job===job))).filter(Boolean).filter((p,i,a)=>a.findIndex(q=>q.id===p.id)===i).slice(0,5);
+      $('#detailCrew').innerHTML=keyCrew.length?keyCrew.map(person=>'<div class="detail-crew-item"><span>'+escapeHtml(person.job||person.jobs?.[0]?.job||'Crew')+'</span><strong>'+escapeHtml(person.name||'Unknown')+'</strong></div>').join(''):'<p class="detail-loading">Key crew information is not available.</p>';
+      const companies=detail.production_companies||detail.networks||[];
+      const country=(detail.production_countries||[]).map(p=>p.name).filter(Boolean).join(', ');
+      const production=[['Production',companies.map(p=>p.name).filter(Boolean).join(' · ')||'Not reported'],['Country',country||((detail.origin_country||[]).join(', '))||'Not reported'],['Original title',detail.original_title||detail.original_name||title],['Tagline',detail.tagline||'No tagline listed'],['Website',detail.homepage?'Official website available':'Not listed']];
+      $('#detailProduction').innerHTML=production.map(([label,value])=>'<div class="detail-production-item"><span>'+escapeHtml(label)+'</span><strong>'+escapeHtml(String(value))+'</strong></div>').join('');
+      const related=(responses[2].data.results||[]).filter(p=>p&&p.id).slice(0,6);
+      const similar=(responses[3].data.results||[]).filter(p=>p&&p.id);
+      const pool=[...related,...similar].filter((p,i,a)=>a.findIndex(q=>q.id===p.id)===i).slice(0,6);
+      $('#detailRecommendations').innerHTML=pool.length?pool.map(item=>{
+        const itemTitle=isTv?(item.name||item.original_name):(item.title||item.original_title);
+        const itemType=item.media_type==='tv'||isTv?'tv':'movie';
+        const itemDate=itemType==='tv'?item.first_air_date:item.release_date;
+        const itemPoster=detailImage(item.poster_path,'w342');
+        const path='/details/'+String(itemTitle||'title').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'?id='+encodeURIComponent(item.id)+'&type='+itemType;
+        return '<a class="detail-related-card" href="'+escapeHtml(path)+'"><div class="detail-related-poster">'+(itemPoster?'<img loading="lazy" src="'+escapeHtml(itemPoster)+'" alt="">':'<span>R</span>')+'</div><strong>'+escapeHtml(itemTitle||'Untitled')+'</strong><span>'+escapeHtml(String(itemDate||'').slice(0,4)||'Year unknown')+' · '+escapeHtml(Number(item.vote_average)>0?'★ '+Number(item.vote_average).toFixed(1):'Not rated')+'</span></a>';
+      }).join(''):'<p class="detail-loading">No related titles were returned for this entry.</p>';
+      // Detail-page buttons are bound once below. Binding them here as well caused
+      // playback to initialize twice and saved-list clicks to toggle twice.
+    }catch(error){
+      if(activeDetailRequest!==requestKey)return;
+      $('#detailTitle').textContent=titleFallback;$('#detailOverview').textContent='Title information could not be loaded. The player can still be tried; cast and production data may be unavailable until the connection recovers.';$('#detailWatchNow').disabled=false;$('#detailWatchNow').innerHTML='▶ <span>Watch now</span>';
+      $('#detailCast').innerHTML='<p class="detail-loading">Cast information is unavailable right now.</p>';$('#detailCrew').innerHTML='<p class="detail-loading">Crew information is unavailable right now.</p>';$('#detailProduction').innerHTML='<p class="detail-loading">Production information is unavailable right now.</p>';$('#detailRecommendations').innerHTML='<p class="detail-loading">Related titles are unavailable right now.</p>';
+      console.warn('Rapiflix title profile failed to load.',error);
+    }
+  }
+  document.addEventListener('rapiflix:detail-page',event=>loadTitleExperience(event.detail||{}));
+  $('#detailWatchNow').addEventListener('click',()=>{
+    if(detailMovie){playFilm(detailMovie);return;}
+    const params=new URLSearchParams(location.search);
+    const id=String(params.get('id')||'').replace(/[^0-9]/g,'');
+    if(id){
+      const media=params.get('type')==='tv'?'tv':'movie';
+      const slug=location.pathname.split('/').filter(Boolean).pop()||'Selected title';
+      const title=slug.replace(/-/g,' ').replace(/\b\w/g,character=>character.toUpperCase());
+      playFilm({id:'tmdb-'+(media==='tv'?'tv-':'')+id,tmdbId:Number(id),mediaType:media,kind:'tmdb',title,year:0,desc:'',genres:[],originalLanguage:''});
+      return;
+    }
+    loadTitleExperience({id:params.get('id')||'',type:params.get('type')||'movie',slug:location.pathname.split('/').filter(Boolean).pop()||''});
+  });
+  $('#detailSave').addEventListener('click',()=>{
+    const params=new URLSearchParams(location.search);
+    const rawId=detailMovie?.tmdbId||Number(params.get('id'));
+    if(!Number.isFinite(Number(rawId))||Number(rawId)<=0)return;
+    const id=detailMovie?.id||('tmdb-'+(params.get('type')==='tv'?'tv-':'')+String(rawId));
+    toggleSave(id);
+    $('#detailSave').textContent=saved.has(id)?'♥ Saved to my list':'♡ Save to my list';
+  });
 $('#genreFilter').addEventListener('change',e=>{activeGenre=e.target.value;renderChips();render();});$('#eraFilter').addEventListener('change',e=>{activeEra=e.target.value;render();});$('#genreChips').addEventListener('click',e=>{const b=e.target.closest('[data-genre]');if(!b)return;activeGenre=b.dataset.genre;$('#genreFilter').value=activeGenre;renderChips();render();});$('#sortButton').addEventListener('click',()=>{sortNewest=!sortNewest;$('#sortButton').innerHTML=`↕ <span>${sortNewest?'Newest first':'Featured'}</span>`;render();});const handleMovieGridClick=e=>{
     const saveBtn=e.target.closest('[data-save]');
     if(saveBtn){e.stopPropagation();toggleSave(saveBtn.dataset.save);return;}
@@ -899,7 +1018,15 @@ $('#genreFilter').addEventListener('change',e=>{activeGenre=e.target.value;rende
     if(card)openDetails(card.dataset.card);
   };
   ['#movieGrid','#freeMovieGrid'].forEach(selector=>$(selector)?.addEventListener('click',handleMovieGridClick));
-  $('#savedToggle').addEventListener('click',()=>{showingSaved=!showingSaved;$('#savedToggle').style.borderColor=showingSaved?'var(--accent)':'';$('#savedToggle').innerHTML=`${showingSaved?'♥':'♡'} <span class="saved-count" id="savedCount">${saved.size}</span>`;document.querySelector('#library').scrollIntoView({behavior:'smooth'});render();});$('#loadMore').addEventListener('click',loadMore);$('#modalClose').addEventListener('click',()=>closeModal('#modalBackdrop'));$('#modalBackdrop').addEventListener('click',e=>{if(e.target===$('#modalBackdrop'))closeModal('#modalBackdrop');});$('#modalPlay').addEventListener('click',()=>playFilm(selected));$('#modalSave').addEventListener('click',()=>toggleSave(selected.id));$('#playerFullscreen').addEventListener('click',async()=>{
+  $('#savedToggle').addEventListener('click',()=>{showingSaved=!showingSaved;$('#savedToggle').style.borderColor=showingSaved?'var(--accent)':'';$('#savedToggle').innerHTML=`${showingSaved?'♥':'♡'} <span class="saved-count" id="savedCount">${saved.size}</span>`;document.querySelector('#library').scrollIntoView({behavior:'smooth'});render();});$('#loadMore').addEventListener('click',loadMore);$('#modalClose').addEventListener('click',()=>closeModal('#modalBackdrop'));$('#modalBackdrop').addEventListener('click',e=>{if(e.target===$('#modalBackdrop'))closeModal('#modalBackdrop');});$('#modalPlay').addEventListener('click',()=>{
+    if(selected?.kind==='tmdb'&&Number(selected.tmdbId)>0){
+      const slug=titleSlug(selected.title);
+      const type=selected.mediaType==='tv'?'tv':'movie';
+      location.assign('/details/'+slug+'?id='+encodeURIComponent(String(selected.tmdbId))+'&type='+type);
+      return;
+    }
+    playFilm(selected);
+  });$('#modalSave').addEventListener('click',()=>toggleSave(selected.id));$('#playerFullscreen').addEventListener('click',async()=>{
     const dialog=$('.player-dialog'),frame=$('#playerFrame'),video=frame.querySelector('video'),button=$('#playerFullscreen'),note=$('#playerFootNote');
     try{
       if(document.fullscreenElement){await document.exitFullscreen();return;}
