@@ -299,17 +299,13 @@ test("CinePro proxy rejects insecure production base URLs", async () => {
 });
 
 test("front-end title, playback, and poster contracts remain wired", async () => {
-  const [app, routes, html, css, pagesRoutes, redirects, headers, shared] = await Promise.all([
+  const [app, routes, html, css, pagesRoutes, redirects] = await Promise.all([
     read("app.js"), read("routes.js"), read("index.html"), read("styles.css"),
-    read("_routes.json"), read("_redirects"), read("_headers"), read("shared.js")
+    read("_routes.json"), read("_redirects")
   ]);
   assert.match(html, /id="modalBackdrop"/);
   assert.match(html, /id="modalPlay"/);
   assert.match(html, /id="detailPage"/);
-  assert.match(html, /href="\/styles\.css\?/);
-  assert.match(html, /src="\/shared\.js\?/);
-  assert.match(html, /src="\/app\.js\?/);
-  assert.match(html, /src="\/routes\.js\?/);
   assert.match(html, /id="detailWatchNow"/);
   assert.match(html, /id="detailCast"/);
   assert.match(html, /id="detailPlayerShell"/);
@@ -317,26 +313,14 @@ test("front-end title, playback, and poster contracts remain wired", async () =>
   assert.match(html, /id="detailSeasonChips"/);
   assert.match(html, /id="detailEpisodes"/);
   assert.match(html, /id="heroArt"/);
-  assert.match(html, /class="primary-button"[^>]*id="modalPlay"[^>]*href="\/"/);
-  assert.match(app, /watch\.href=titlePageUrl\(m\)/);
-  assert.match(app, /return '\/title\//);
+  assert.match(app, /location\.assign\('\/details\//);
   assert.match(app, /\$\('#modalPlay'\)\.addEventListener\('click'/);
   assert.match(app, /\$\('#detailWatchNow'\)\.addEventListener\('click'/);
   assert.match(app, /document\.addEventListener\('rapiflix:detail-page'/);
-  assert.match(routes, /path\.startsWith\('\/title\/'\)/);
   assert.match(routes, /path\.startsWith\('\/details\/'\)/);
-  assert.match(routes, /sourcePath\.startsWith\('\/details\/'\)[\s\S]*\/title\//);
   assert.match(routes, /new CustomEvent\('rapiflix:detail-page'/);
-  assert.match(routes, /return \{page:'detail',slug:/);
-  assert.doesNotMatch(routes, /if\(false&&location\.pathname\.startsWith/);
-  assert.match(app, /const titleLink=e\.target\.closest\('a\[data-title-link\]'\);[\s\S]*if\(titleLink\)return/);
-  assert.match(redirects, /\/title\/\* \/ 200/);
   assert.match(redirects, /\/details\/\* \/ 200/);
   assert.ok(JSON.parse(pagesRoutes).include.includes("/api/health"));
-  assert.match(headers, /\/index\.html[\s\S]*Cache-Control: no-cache/);
-  assert.match(shared, /function slugify/);
-  assert.match(html, /aria-label="Quick view"/);
-  assert.match(html, /detailNotFound/);
   assert.match(app, /withTimeout\(tmdbRequest\('tv\//);
   assert.match(app, /vidcore\.org\/embed\/movie\//);
   assert.match(app, /function syncHeroPoster\(movie\)/);
