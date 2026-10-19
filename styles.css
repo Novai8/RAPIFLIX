@@ -1281,3 +1281,12 @@ html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
 .detail-related-poster{position:relative;isolation:isolate}
 .detail-related-poster::before{content:"";position:absolute;inset:-18px;z-index:0;background:var(--detail-poster-blur,none) center/cover no-repeat;filter:blur(18px) saturate(1.15);opacity:.6;transform:scale(1.1);pointer-events:none}
 .detail-related-poster img{position:relative;z-index:1;background:transparent}
+
+/* Trending follows the prototype's horizontal, touch-scrollable rail; other catalogue pages stay in a grid. */
+html[data-page="trending"] #movieGrid{display:flex;flex-wrap:nowrap;gap:20px;overflow-x:auto;overflow-y:visible;scroll-snap-type:x proximity;scrollbar-width:none;padding:20px 8px 30px;margin:0 -8px}
+html[data-page="trending"] #movieGrid::-webkit-scrollbar{display:none}
+html[data-page="trending"] #movieGrid>.movie-card{flex:0 0 clamp(145px,13.5vw,180px);scroll-snap-align:start}
+@media(max-width:600px){
+ html[data-page="trending"] #movieGrid{gap:14px;padding-top:14px;padding-bottom:24px}
+ html[data-page="trending"] #movieGrid>.movie-card{flex-basis:clamp(132px,39vw,165px)}
+}
