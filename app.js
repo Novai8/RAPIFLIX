@@ -427,7 +427,7 @@
         iframe.src='https://vidcore.org/embed/movie/'+encodeURIComponent(String(m.tmdbId));
         iframe.title='Video player for '+m.title;
         iframe.width='100%';iframe.height='100%';iframe.frameBorder='0';
-        iframe.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';
+        iframe.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';iframe.setAttribute('allow','autoplay; encrypted-media; picture-in-picture; fullscreen');iframe.setAttribute('allowfullscreen','');iframe.setAttribute('webkitallowfullscreen','');
         iframe.allowFullscreen=true;iframe.referrerPolicy='strict-origin-when-cross-origin';
         // Restrict provider popups and top-level redirects. Ads drawn inside the cross-origin player cannot be removed from this site.
         iframe.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-presentation');iframe.loading='eager';
@@ -465,7 +465,7 @@
         iframe.src='https://vidcore.org/embed/tv/'+encodeURIComponent(String(m.tmdbId))+'/'+season+'/'+episode;
         iframe.title=m.title+' — Season '+season+', Episode '+episode;
         iframe.width='100%';iframe.height='100%';iframe.frameBorder='0';
-        iframe.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';
+        iframe.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';iframe.setAttribute('allow','autoplay; encrypted-media; picture-in-picture; fullscreen');iframe.setAttribute('allowfullscreen','');iframe.setAttribute('webkitallowfullscreen','');
         iframe.allowFullscreen=true;
         iframe.referrerPolicy='strict-origin-when-cross-origin';
         // Restrict provider popups and top-level redirects. Ads drawn inside the cross-origin player cannot be removed from this site.
@@ -535,7 +535,7 @@
       frame.replaceChildren();
       const iframe=document.createElement('iframe');
       iframe.title='Authorized player for '+m.title;
-      iframe.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';
+      iframe.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';iframe.setAttribute('allow','autoplay; encrypted-media; picture-in-picture; fullscreen');iframe.setAttribute('allowfullscreen','');iframe.setAttribute('webkitallowfullscreen','');
       iframe.allowFullscreen=true;
       iframe.referrerPolicy='strict-origin-when-cross-origin';
         // Restrict provider popups and top-level redirects. Ads drawn inside the cross-origin player cannot be removed from this site.
@@ -899,7 +899,26 @@
     if(card)openDetails(card.dataset.card);
   };
   ['#movieGrid','#freeMovieGrid'].forEach(selector=>$(selector)?.addEventListener('click',handleMovieGridClick));
-  $('#savedToggle').addEventListener('click',()=>{showingSaved=!showingSaved;$('#savedToggle').style.borderColor=showingSaved?'var(--accent)':'';$('#savedToggle').innerHTML=`${showingSaved?'♥':'♡'} <span class="saved-count" id="savedCount">${saved.size}</span>`;document.querySelector('#library').scrollIntoView({behavior:'smooth'});render();});$('#loadMore').addEventListener('click',loadMore);$('#modalClose').addEventListener('click',()=>closeModal('#modalBackdrop'));$('#modalBackdrop').addEventListener('click',e=>{if(e.target===$('#modalBackdrop'))closeModal('#modalBackdrop');});$('#modalPlay').addEventListener('click',()=>playFilm(selected));$('#modalSave').addEventListener('click',()=>toggleSave(selected.id));$('#playerClose').addEventListener('click',()=>{const v=$('#playerFrame video');if(v)v.pause();$('#playerFrame').replaceChildren();closeModal('#playerBackdrop');});$('#playerBackdrop').addEventListener('click',e=>{if(e.target===$('#playerBackdrop')){$('#playerClose').click();}});$('#menuButton').addEventListener('click',()=>$('.nav-links').classList.toggle('open'));$('.nav-links').addEventListener('click',e=>{if(e.target.closest('a'))$('.nav-links').classList.remove('open');});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#playerBackdrop').hidden)$('#playerClose').click();else closeModal('#modalBackdrop');}if(e.key==='/'&&!/input|textarea/i.test(document.activeElement.tagName)){e.preventDefault();$('#searchInput').focus();}});
+  $('#savedToggle').addEventListener('click',()=>{showingSaved=!showingSaved;$('#savedToggle').style.borderColor=showingSaved?'var(--accent)':'';$('#savedToggle').innerHTML=`${showingSaved?'♥':'♡'} <span class="saved-count" id="savedCount">${saved.size}</span>`;document.querySelector('#library').scrollIntoView({behavior:'smooth'});render();});$('#loadMore').addEventListener('click',loadMore);$('#modalClose').addEventListener('click',()=>closeModal('#modalBackdrop'));$('#modalBackdrop').addEventListener('click',e=>{if(e.target===$('#modalBackdrop'))closeModal('#modalBackdrop');});$('#modalPlay').addEventListener('click',()=>playFilm(selected));$('#modalSave').addEventListener('click',()=>toggleSave(selected.id));$('#playerFullscreen').addEventListener('click',async()=>{
+    const frame=$('#playerFrame'),button=$('#playerFullscreen'),note=$('#playerFootNote');
+    const target=frame.querySelector('video')||frame.querySelector('iframe')||frame;
+    try{
+      if(document.fullscreenElement){await document.exitFullscreen();return;}
+      if(target.requestFullscreen)await target.requestFullscreen({navigationUI:'hide'});
+      else if(frame.requestFullscreen)await frame.requestFullscreen();
+      else if(target.webkitEnterFullscreen)target.webkitEnterFullscreen();
+      else throw new Error('Full screen is not supported by this browser.');
+    }catch(error){
+      if(note)note.textContent='Use the player’s own full-screen control if available.';
+    }
+  });
+  document.addEventListener('fullscreenchange',()=>{
+    const button=$('#playerFullscreen');if(!button)return;
+    const active=Boolean(document.fullscreenElement);
+    button.setAttribute('aria-label',active?'Exit full screen':'Enter full screen');
+    button.innerHTML=active?'⛶ <span>Exit full screen</span>':'⛶ <span>Full screen</span>';
+  });
+  $('#playerClose').addEventListener('click',()=>{const v=$('#playerFrame video');if(v)v.pause();if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});$('#playerFrame').replaceChildren();closeModal('#playerBackdrop');});$('#playerBackdrop').addEventListener('click',e=>{if(e.target===$('#playerBackdrop')){$('#playerClose').click();}});$('#menuButton').addEventListener('click',()=>$('.nav-links').classList.toggle('open'));$('.nav-links').addEventListener('click',e=>{if(e.target.closest('a'))$('.nav-links').classList.remove('open');});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#playerBackdrop').hidden)$('#playerClose').click();else closeModal('#modalBackdrop');}if(e.key==='/'&&!/input|textarea/i.test(document.activeElement.tagName)){e.preventDefault();$('#searchInput').focus();}});
   // Subtle pointer-responsive poster tilt, with no distracting glow effects.
   ['#movieGrid','#freeMovieGrid'].forEach(selector=>{
     const grid=$(selector);
