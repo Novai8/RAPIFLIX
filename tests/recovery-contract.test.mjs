@@ -9,6 +9,7 @@ const read = (relativePath) => readFile(path.join(root, relativePath), "utf8");
 
 const tmdbSource = await read("functions/api/tmdb/[[path]].js");
 const healthSource = await read("functions/api/health.js");
+const cineproSource = await read("functions/api/cinepro/[[path]].js");
 
 function loadTmdbHandler(fetchImpl) {
   const source = tmdbSource.replace(
@@ -24,6 +25,14 @@ function loadHealthHandler() {
     "async function onRequestGet()"
   );
   return new Function(source + "\nreturn onRequestGet;")();
+}
+
+function loadCineproHandler(fetchImpl) {
+  const source = cineproSource.replace(
+    "export async function onRequest(context)",
+    "async function onRequest(context)"
+  );
+  return new Function("fetch", source + "\\nreturn onRequest;")(fetchImpl);
 }
 
 const endpointPaths = [
@@ -207,6 +216,86 @@ test("health endpoint returns only the public health contract", async () => {
   assert.match(response.headers.get("content-type") || "", /application\/json/);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual(await response.json(), { ok: true, service: "rapiflix-api" });
+});
+
+
+test("CinePro proxy returns a JSON 503 when its configured service URL is missing", async () => {
+  let upstreamCalled = false;
+  const handler = loadCineproHandler(async () => { upstreamCalled = true; return new Response("{}"); });
+  const response = await handler({
+    request: new Request("https://rapiflix.test/api/cinepro/v1/movies/550"),
+    env: {},
+    params: { path: ["v1", "movies", "550"] }
+  });
+  assert.equal(response.status, 503);
+  assert.equal(typeof (await response.json()).error, "string");
+  assert.equal(upstreamCalled, false);
+});
+
+test("CinePro proxy rejects unsupported routes before contacting the configured service", async () => {
+  let upstreamCalled = false;
+  const handler = loadCineproHandler(async () => { upstreamCalled = true; return new Response("{}"); });
+  const response = await handler({
+    request: new Request("https://rapiflix.test/api/cinepro/v1/admin/tokens"),
+    env: { CINEPRO_BASE_URL: "https://cinepro.example.test" },
+    params: { path: ["v1", "admin", "tokens"] }
+  });
+  assert.equal(response.status, 404);
+  assert.equal(typeof (await response.json()).error, "string");
+  assert.equal(upstreamCalled, false);
+});
+
+for (const endpoint of [
+  "v1/movies/550",
+  "v1/tv/1399/seasons/1/episodes/2"
+]) {
+  test("CinePro contract: GET /api/cinepro/" + endpoint, async () => {
+    let upstreamUrl;
+    let upstreamOptions;
+    const fixture = {
+      responseId: "contract-response",
+      sources: [{ id: "fixture-source", url: "/v1/proxy?data=fixture", type: "hls", quality: "HD", audioTracks: [], provider: { id: "fixture", name: "Fixture" } }],
+      subtitles: [{ url: "/subtitles/en.vtt", label: "English", format: "vtt" }]
+    };
+    const handler = loadCineproHandler(async (url, options) => {
+      upstreamUrl = new URL(url);
+      upstreamOptions = options;
+      return new Response(JSON.stringify(fixture), {
+        status: 200,
+        headers: { "Content-Type": "application/json; charset=utf-8" }
+      });
+    });
+    const response = await handler({
+      request: new Request("https://rapiflix.test/api/cinepro/" + endpoint),
+      env: { CINEPRO_BASE_URL: "https://cinepro.example.test" },
+      params: { path: endpoint.split("/") }
+    });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") || "", /application\\/json/);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(upstreamUrl.origin, "https://cinepro.example.test");
+    assert.equal(upstreamUrl.pathname, "/" + endpoint);
+    assert.equal(upstreamOptions.headers.Accept, "application/json");
+    assert.equal(upstreamOptions.redirect, "error");
+    const body = await response.json();
+    assert.equal(body.responseId, "contract-response");
+    assert.ok(Array.isArray(body.sources));
+    assert.ok(Array.isArray(body.subtitles));
+    assert.equal(body.sources[0].url, "https://cinepro.example.test/v1/proxy?data=fixture");
+    assert.equal(body.subtitles[0].url, "https://cinepro.example.test/subtitles/en.vtt");
+  });
+}
+
+test("CinePro proxy rejects insecure production base URLs", async () => {
+  let upstreamCalled = false;
+  const handler = loadCineproHandler(async () => { upstreamCalled = true; return new Response("{}"); });
+  const response = await handler({
+    request: new Request("https://rapiflix.test/api/cinepro/v1/movies/550"),
+    env: { CINEPRO_BASE_URL: "http://cinepro.example.test" },
+    params: { path: ["v1", "movies", "550"] }
+  });
+  assert.equal(response.status, 503);
+  assert.equal(upstreamCalled, false);
 });
 
 test("front-end title, playback, and poster contracts remain wired", async () => {
