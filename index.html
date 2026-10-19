@@ -3,39 +3,50 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0d14">
-<meta name="description" content="Discover free movies, trending films, TV series and anime on Rapiflix. Explore titles from 2000–2026, browse genres, find viewing options, and enjoy a cinematic discovery experience.">
-<meta name="keywords" content="Rapiflix, free movies, watch free movies, movies online, trending movies, TV series, anime, movie discovery, film catalogue, movies by year, movies 2000 to 2026, film genres, movie search, series discovery, anime discovery, TMDB, official streaming options">
+<meta name="description" content="Discover movies, TV series and anime on Rapiflix. Explore trending films, browse genres, find where to watch titles, and discover free films with available viewing options.">
+<meta name="keywords" content="Rapiflix, free movie discovery, watch movies online, free films, new movies, trending movies, where to watch movies, TV series, anime, movie recommendations, movie genres, film release years">
 <meta name="author" content="Rapiflix">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Rapiflix">
 <meta property="og:title" content="Rapiflix | Discover Free Movies, TV Series and Anime">
-<meta property="og:description" content="Explore trending movies, TV series and anime from 2000–2026 with genre filters and a cinematic discovery interface.">
+<meta property="og:description" content="Explore trending movies, TV series and anime, browse genres, and find viewing options for films and series on Rapiflix.">
 <meta property="og:url" content="https://rapiflix.online/">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Rapiflix | Movies, TV Series and Anime">
 <meta name="twitter:description" content="Discover trending films, series and anime on Rapiflix.">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/favicon.svg">
-<title>Rapiflix | Free Movie Discovery, TV Series & Anime</title>
+<title>Rapiflix: Discover Movies, TV Series & Anime</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Unbounded:wght@500;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div><div class="mouse-glow" aria-hidden="true"></div>
-<div class="loading-curtain" id="loadingCurtain" role="status" aria-label="Loading Rapiflix" aria-live="polite">
-  <div class="loader-noise" aria-hidden="true"></div><div class="loader-orbit orbit-one" aria-hidden="true"></div><div class="loader-orbit orbit-two" aria-hidden="true"></div><div class="loader-orbit orbit-three" aria-hidden="true"></div>
-  <div class="loader-particles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-  <div class="loading-center">
-    <div class="loader-emblem" aria-hidden="true"><span class="emblem-shard shard-a"></span><span class="emblem-shard shard-b"></span><span class="emblem-core">R</span></div>
-    <div class="loader-brand"><span class="chevrons">››</span><span class="loader-word" aria-label="Rapiflix"><span>r</span><span>a</span><span>p</span><span>i</span><span>f</span><span>l</span><span>i</span><span>x</span></span></div>
-    <p class="loader-tagline">YOUR NEXT STORY STARTS HERE</p>
-    <div class="loader-filmstrip" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="loader-progress-row"><span id="loaderStatus">Warming up the projector</span><span id="progressNumber">00%</span></div>
-    <div class="progress-track" role="progressbar" aria-label="Loading Rapiflix" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="loaderProgress"><span id="progressFill"></span><i></i></div>
-    <div class="loader-foot"><span class="loader-live-dot"></span><span>DISCOVER · WATCH · REPEAT</span><span id="loaderCounter">00:05</span></div>
+<div class="loading-curtain loader-sphere-scene" id="loadingCurtain" role="status" aria-label="Loading Rapiflix" aria-live="polite">
+  <div class="space-stars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="sphere-stage" aria-hidden="true">
+    <div class="sphere-halo"></div>
+    <div class="movie-sphere">
+      <div class="sphere-glass"></div>
+      <div class="sphere-latitude latitude-one"></div><div class="sphere-latitude latitude-two"></div><div class="sphere-latitude latitude-three"></div>
+      <div class="sphere-longitude longitude-one"></div><div class="sphere-longitude longitude-two"></div>
+      <div class="movie-orbit orbit-a"><span class="movie-token token-popcorn">🍿</span></div>
+      <div class="movie-orbit orbit-b"><span class="movie-token token-film">🎬</span></div>
+      <div class="movie-orbit orbit-c"><span class="movie-token token-star">⭐</span></div>
+      <div class="movie-orbit orbit-d"><span class="movie-token token-ticket">🎟️</span></div>
+      <div class="movie-orbit orbit-e"><span class="movie-token token-tv">📺</span></div>
+      <div class="sphere-core"><span>R</span></div>
+    </div>
+    <span class="sphere-spark spark-one">✦</span><span class="sphere-spark spark-two">✧</span><span class="sphere-spark spark-three">✦</span><span class="sphere-spark spark-four">·</span>
   </div>
-  <span class="loader-corner corner-tl" aria-hidden="true"></span><span class="loader-corner corner-tr" aria-hidden="true"></span><span class="loader-corner corner-bl" aria-hidden="true"></span><span class="loader-corner corner-br" aria-hidden="true"></span>
+  <div class="loading-center sphere-loading-center">
+    <div class="loader-brand"><span class="chevrons">››</span><span class="loader-word" aria-label="Rapiflix"><span>r</span><span>a</span><span>p</span><span>i</span><span>f</span><span>l</span><span>i</span><span>x</span></span></div>
+    <p class="loader-tagline">A WHOLE UNIVERSE OF STORIES</p>
+    <div class="loader-progress-row"><span id="loaderStatus">Spinning up the movie universe</span><span id="progressNumber">00%</span></div>
+    <div class="progress-track" role="progressbar" aria-label="Loading Rapiflix" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="loaderProgress"><span id="progressFill"></span><i></i></div>
+    <div class="loader-foot"><span class="loader-live-dot"></span><span>POPCORN READY?</span><span id="loaderCounter">00:05</span></div>
+  </div>
 </div>
 <header class="site-header">
 <a class="brand" href="/" aria-label="Rapiflix home"><svg viewBox="0 0 28 22" aria-hidden="true"><path d="M2 2h7l8 9-8 9H2l8-9zM13 2h7l8 9-8 9h-7l8-9z" fill="currentColor"/></svg><span>rapiflix</span></a>
@@ -49,7 +60,7 @@
 <div class="results-line"><span id="resultsLabel">Trending titles</span><span id="resultsCount">Loading…</span></div><div class="movie-grid" id="movieGrid" aria-live="polite"></div><div class="load-row"><button class="load-button" id="loadMoreTmdb">Load more titles <span>↓</span></button><p>Catalog metadata by TMDB. Availability depends on your region and each title’s rights.</p></div>
 <div class="free-catalog-heading"><div><h3>Free films to play here</h3><p>Rights-screened public-domain and Creative Commons films from Internet Archive.</p></div><div class="results-line"><span id="freeResultsLabel">FREE FILMS</span><span id="freeResultsCount">Loading…</span></div></div><div class="movie-grid" id="freeMovieGrid" aria-live="polite"></div><div class="load-row"><button class="load-button" id="loadMore">Explore more free films ↗</button></div>
 </section>
-<section class="about-section"><div><p class="hero-meta">A note from Rapiflix</p><h2>Made for the<br>movie curious.</h2></div><div><p>Rapiflix is an independent film discovery and playback project. The free library resolves compatible video files from Internet Archive items and plays them inside Rapiflix. Commercial titles open official or configured viewing options where available.</p><p>Movie metadata is provided by TMDB. Rapiflix uses TMDB APIs but is not endorsed or certified by TMDB. Source availability and rights depend on the underlying provider.</p><p><a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer">TMDB ↗</a> · <a href="https://archive.org/details/feature_films" target="_blank" rel="noreferrer">Internet Archive ↗</a></p></div></section>
+<section class="about-section"><div><p class="hero-meta">A note from Rapiflix</p><h2>Made for the<br>movie curious.</h2></div><div><p>Discover movies online with Rapiflix, an independent film discovery and playback project. Browse trending movies, explore TV series and anime, search by genre or release year, and find available viewing options. Our free film library uses compatible Internet Archive items; commercial titles link to official or configured viewing options where available.</p><p>Movie metadata is provided by TMDB. Rapiflix uses TMDB APIs but is not endorsed or certified by TMDB. Source availability and rights depend on the underlying provider.</p><p><a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer">TMDB ↗</a> · <a href="https://archive.org/details/feature_films" target="_blank" rel="noreferrer">Internet Archive ↗</a></p></div></section>
 </main>
 <footer><a class="brand" href="/"><svg viewBox="0 0 28 22" aria-hidden="true"><path d="M2 2h7l8 9-8 9H2l8-9zM13 2h7l8 9-8 9h-7l8-9z" fill="currentColor"/></svg><span>rapiflix</span></a><span>Film discovery · Movies · Series · Anime</span><a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer">Metadata by TMDB ↗</a></footer>
 <div class="color-panel" aria-label="Colors used on this page"><div><i id="bgSwatch"></i><span>Background</span><code id="bgHex">#0A0D14</code></div><div><i id="fgSwatch"></i><span>Text</span><code id="fgHex">#F1F3F8</code></div><div><i id="btnSwatch"></i><span>Button</span><code id="btnHex">#FF5A1F</code></div></div>
