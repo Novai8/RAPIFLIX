@@ -32,7 +32,7 @@ function loadCineproHandler(fetchImpl) {
     "export async function onRequest(context)",
     "async function onRequest(context)"
   );
-  return new Function("fetch", source + "\\nreturn onRequest;")(fetchImpl);
+  return new Function("fetch", source + "\nreturn onRequest;")(fetchImpl);
 }
 
 const endpointPaths = [
