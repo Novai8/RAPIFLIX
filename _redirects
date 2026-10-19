@@ -3,3 +3,4 @@
 /anime / 200
 /search / 200
 /title/* / 200
+/details/* / 200

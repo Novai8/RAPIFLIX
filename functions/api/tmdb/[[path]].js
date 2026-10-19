@@ -5,6 +5,8 @@ const ALLOWED = [
   /^movie\/(now_playing|upcoming|popular|top_rated)$/,
   /^tv\/(airing_today|on_the_air|popular|top_rated)$/,
   /^search\/(movie|tv|multi)$/,
+  /^movie\/[1-9][0-9]*\/(credits|recommendations|similar)$/,
+  /^tv\/[1-9][0-9]*\/(credits|recommendations|similar)$/,
   /^movie\/[1-9][0-9]*\/translations$/,
   /^tv\/[1-9][0-9]*\/translations$/,
   /^movie\/[1-9][0-9]*\/watch\/providers$/,
@@ -78,7 +80,12 @@ export async function onRequest(context) {
         "X-Content-Type-Options": "nosniff"
       }
     });
-  } catch (_) {
+  } catch (error) {
+    // Log only the validated endpoint and error class. Never log the API key or full upstream URL.
+    console.error("Rapiflix TMDB upstream request failed", {
+      path,
+      errorName: error instanceof Error ? error.name : "UnknownError"
+    });
     return errorResponse("The TMDB service could not be reached.", 502);
   }
 }

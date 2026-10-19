@@ -2,7 +2,8 @@
   "version": 1,
   "include": [
     "/api/tmdb/*",
-    "/api/cinepro/*"
+    "/api/cinepro/*",
+    "/api/health"
   ],
   "exclude": []
 }
