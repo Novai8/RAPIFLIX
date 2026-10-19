@@ -23,28 +23,25 @@
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div><div class="mouse-glow" aria-hidden="true"></div>
-<div class="loading-curtain loader-portal-scene" id="loadingCurtain" role="status" aria-label="Loading Rapiflix" aria-live="polite">
-  <div class="portal-starfield" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-  <div class="portal-stage" aria-hidden="true">
-    <div class="portal-ground-glow"></div>
-    <div class="portal-ring portal-ring-back"></div>
-    <div class="portal-ring portal-ring-mid"></div>
-    <div class="portal-arch">
-      <div class="portal-inner"></div><div class="portal-vortex"></div>
-      <div class="portal-core-mark">R<span>››</span></div>
-      <div class="portal-energy portal-energy-one"></div><div class="portal-energy portal-energy-two"></div>
-      <span class="portal-particle pp1">✦</span><span class="portal-particle pp2">✧</span><span class="portal-particle pp3">✦</span><span class="portal-particle pp4">·</span><span class="portal-particle pp5">✧</span><span class="portal-particle pp6">✦</span>
-    </div>
-    <div class="portal-floor"></div>
+<div class="loading-curtain loader-random-scene" id="loadingCurtain" role="status" aria-label="Loading Rapiflix" aria-live="polite" data-scene="portal">
+  <div class="loader-sky" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="loader-visual" aria-hidden="true">
+    <div class="loader-scene scene-universe"><div class="universe-orbit orbit-a"></div><div class="universe-orbit orbit-b"></div><div class="universe-planet"></div><span class="floating-prop prop-popcorn">🍿</span><span class="floating-prop prop-ticket">🎟</span><span class="floating-prop prop-clapper">🎬</span><span class="floating-prop prop-screen">▣</span><span class="universe-star star-a">✦</span><span class="universe-star star-b">✧</span><span class="universe-star star-c">✦</span></div>
+    <div class="loader-scene scene-portal"><div class="portal-ground"></div><div class="portal-ring portal-ring-a"></div><div class="portal-ring portal-ring-b"></div><div class="portal-gate"><div class="portal-depth"></div><div class="portal-swirl"></div><span class="portal-logo">R<span>››</span></span></div><i class="portal-spark spark-a">✦</i><i class="portal-spark spark-b">✧</i><i class="portal-spark spark-c">✦</i><i class="portal-spark spark-d">·</i></div>
+    <div class="loader-scene scene-logo"><div class="logo-fragment fragment-a">R</div><div class="logo-fragment fragment-b">A</div><div class="logo-fragment fragment-c">P</div><div class="logo-fragment fragment-d">››</div><div class="logo-shockwave"></div><div class="logo-sparkles">✦　·　✧　·　✦</div></div>
+    <div class="loader-scene scene-cube"><div class="glass-cube"><div class="cube-face cube-front"><span>▶</span><b>R</b></div><div class="cube-face cube-back">✦</div><div class="cube-face cube-left">▤</div><div class="cube-face cube-right">▶</div><div class="cube-face cube-top">✧</div><div class="cube-face cube-bottom">R</div></div><span class="cube-orbit cube-orbit-a"></span><span class="cube-orbit cube-orbit-b"></span><i class="cube-glint">✦</i></div>
+    <div class="loader-scene scene-rocket"><div class="rocket-trail"></div><div class="popcorn-rocket"><span class="rocket-fin"></span><span class="rocket-window">▶</span><span class="rocket-pop">🍿</span><span class="rocket-flame"></span></div><span class="rocket-pickup pickup-a">🎟</span><span class="rocket-pickup pickup-b">✦</span><span class="rocket-pickup pickup-c">★</span><div class="rocket-planet"></div></div>
+    <div class="loader-scene scene-reel"><div class="reel-halo"></div><div class="film-reel"><div class="reel-hole hole-a"></div><div class="reel-hole hole-b"></div><div class="reel-hole hole-c"></div><div class="reel-hole hole-d"></div><div class="reel-hole hole-e"></div><div class="reel-hole hole-f"></div><div class="reel-hub"></div></div><div class="film-strip strip-a"><i>▶</i><i>✦</i><i>▣</i></div><div class="film-strip strip-b"><i>✧</i><i>▶</i><i>★</i></div></div>
+    <div class="loader-scene scene-cinema"><div class="cinema-beam"></div><div class="mini-cinema"><div class="cinema-marquee"><span>RAPIFLIX</span></div><div class="cinema-roof"></div><div class="cinema-screen"><i>▶</i></div><div class="cinema-curtain curtain-left"></div><div class="cinema-curtain curtain-right"></div><div class="cinema-base"></div><div class="cinema-bulbs">• • • • • • • • •</div></div><span class="cinema-ticket ticket-a">✦</span><span class="cinema-ticket ticket-b">🎟</span></div>
   </div>
-  <div class="portal-copy">
+  <div class="portal-copy loader-copy">
     <div class="loader-brand"><span class="chevrons">››</span><span class="loader-word" aria-label="Rapiflix"><span>r</span><span>a</span><span>p</span><span>i</span><span>f</span><span>l</span><span>i</span><span>x</span></span></div>
-    <p class="loader-tagline">STEP INTO ANOTHER WORLD</p>
-    <div class="loader-progress-row"><span id="loaderStatus">Opening the cinematic portal</span><span id="progressNumber">00%</span></div>
+    <p class="loader-tagline" id="loaderTagline">STEP INTO ANOTHER WORLD</p>
+    <div class="loader-progress-row"><span id="loaderStatus">Tuning the cinematic universe</span><span id="progressNumber">00%</span></div>
     <div class="progress-track" role="progressbar" aria-label="Loading Rapiflix" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="loaderProgress"><span id="progressFill"></span><i></i></div>
-    <div class="loader-foot"><span class="loader-live-dot"></span><span>YOUR NEXT STORY AWAITS</span><span id="loaderCounter">00:05</span></div>
-    <button type="button" class="portal-sound-toggle" id="portalSoundToggle" aria-pressed="false" aria-label="Enable cinematic portal sound"><span class="sound-icon" aria-hidden="true">♫</span><span id="portalSoundLabel">Tap for portal sound</span><span class="sound-toggle-state">OFF</span></button>
-    <p class="portal-sound-note">Sound is optional. Your device stays quiet until you turn it on.</p>
+    <div class="loader-foot"><span class="loader-live-dot"></span><span>YOUR NEXT STORY AWAITS</span><span id="loaderCounter">00:04</span></div>
+    <button type="button" class="portal-sound-toggle" id="portalSoundToggle" aria-pressed="false" aria-label="Enable cinematic loading sound"><span class="sound-icon" aria-hidden="true">♫</span><span id="portalSoundLabel">Enable cinematic sound</span><span class="sound-toggle-state">OFF</span></button>
+    <p class="portal-sound-note">Sound is optional and starts only after your tap. No surprise autoplay.</p>
   </div>
 </div>
 <header class="site-header">
