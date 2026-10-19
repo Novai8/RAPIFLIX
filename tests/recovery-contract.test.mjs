@@ -298,49 +298,41 @@ test("CinePro proxy rejects insecure production base URLs", async () => {
   assert.equal(upstreamCalled, false);
 });
 
-test("front-end title, playback, and poster contracts remain wired", async () => {
+test("front-end direct playback bypasses individual title pages and keeps poster contracts wired", async () => {
   const [app, routes, html, css, pagesRoutes, redirects] = await Promise.all([
     read("app.js"), read("routes.js"), read("index.html"), read("styles.css"),
     read("_routes.json"), read("_redirects")
   ]);
-  assert.match(html, /id="modalBackdrop"/);
-  assert.match(html, /id="modalPlay"/);
-  assert.match(html, /id="detailPage"/);
-  assert.match(html, /id="detailWatchNow"/);
-  assert.match(html, /id="detailCast"/);
-  assert.match(html, /id="detailPlayerShell"/);
-  assert.match(html, /id="detailMoneyChart"/);
-  assert.match(html, /id="detailSeasonChips"/);
-  assert.match(html, /id="detailEpisodes"/);
+  assert.match(html, /id="playerBackdrop"/);
+  assert.match(html, /id="playerFrame"/);
+  assert.doesNotMatch(html, /id="detailPage"/);
+  assert.doesNotMatch(html, /id="detailWatchNow"/);
   assert.match(html, /id="heroArt"/);
-  assert.match(app, /location\.assign\('\/details\//);
-  assert.match(app, /\$\('#modalPlay'\)\.addEventListener\('click'/);
-  assert.match(app, /\$\('#detailWatchNow'\)\.addEventListener\('click'/);
-  assert.match(app, /document\.addEventListener\('rapiflix:detail-page'/);
-  assert.match(routes, /path\.startsWith\('\/details\/'\)/);
-  assert.match(routes, /new CustomEvent\('rapiflix:detail-page'/);
-  assert.match(redirects, /\/details\/\* \/ 200/);
+  assert.match(app, /function playTitle\(id\)/);
+  assert.match(app, /Promise\.resolve\(playFilm\(m\)\)/);
+  assert.match(app, /if\(details\)\{playTitle\(details\.dataset\.details\);return;\}/);
+  assert.match(app, /if\(card\)playTitle\(card\.dataset\.card\);/);
+  assert.match(app, /\$\('#modalPlay'\)\.addEventListener\('click',\(\)=>playTitle\(selected\?\.id\)\)/);
+  assert.doesNotMatch(app, /location\.assign\('\/details\//);
+  assert.match(routes, /path\.startsWith\('\/details\/'\)\|\|path\.startsWith\('\/title\/'\)/);
+  assert.match(routes, /history\.replaceState\(\{rapiflix:true\},'','\/'\)/);
+  assert.doesNotMatch(routes, /new CustomEvent\('rapiflix:detail-page'/);
+  assert.match(routes, /card\.addEventListener\('click',e=>\{\s*const link=e\.target\.closest\('a\[data-title-link\]'\);\s*if\(link\)e\.preventDefault\(\);\s*\}\);/);
+  assert.match(redirects, /\/details\/\* \/ 302/);
+  assert.match(redirects, /\/title\/\* \/ 302/);
   assert.ok(JSON.parse(pagesRoutes).include.includes("/api/health"));
   assert.match(app, /withTimeout\(tmdbRequest\('tv\//);
   assert.match(app, /vidcore\.org\/embed\/movie\//);
-  assert.match(app, /function syncHeroPoster\(movie\)/);
   assert.match(app, /vidcore\.org\/embed\/tv\//);
-  assert.match(app, /renderDetailMoney\(detail\)/);
-  assert.match(app, /initializeDetailEpisodes\(detail,requestKey\)/);
-  assert.match(app, /loadDetailEpisodes\(detailSelectedSeason,activeDetailRequest\)/);
-
+  assert.match(app, /function syncHeroPoster\(movie\)/);
   assert.match(css, /\.modal-backdrop,\.player-backdrop\{/);
   assert.match(css, /\[hidden\]\{display:none!important\}/);
   assert.match(css, /\.cursor-dot,\.cursor-ring\{[^}]*pointer-events:none/s);
   assert.match(css, /\.mouse-glow\{[^}]*pointer-events:none/s);
-  for (const selector of ["hero-poster img", "movie-card img", "modal-poster img", "detail-poster-wrap img", "detail-related-poster img", "search-suggestion-art img"]) {
+  for (const selector of ["hero-poster img", "movie-card img", "modal-poster img", "search-suggestion-art img"]) {
     assert.ok(css.includes(selector), "missing poster object-fit rule for " + selector);
   }
   assert.match(css, /object-fit: contain !important/);
-  assert.match(css, /\.detail-player-shell\{/);
-  assert.match(css, /\.detail-money-row\{/);
-  assert.match(css, /\.detail-season-chip\{/);
-  assert.match(css, /\.detail-episode\{/);
   assert.match(css, /\.hero-poster::before/);
   assert.match(css, /\.movie-card \.poster-wrap::before/);
   assert.match(css, /html\[data-page="trending"\] #movieGrid/);
