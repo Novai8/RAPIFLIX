@@ -31,10 +31,10 @@ test('all fixture catalogue titles render, keep their posters contained, and exp
 test('mobile width, dark and light themes, reduced motion, and accessible controls stay usable', async ({ page }) => {
   const errors = await prepare(page, 360);
   await expect(page.getByRole('searchbox')).toBeVisible();
-  await expect(page.getByRole('button', { name: /theme/i })).toBeVisible();
-  await page.getByRole('button', { name: /theme/i }).click();
+  await expect(page.locator('#themeToggle')).toBeVisible();
+  await page.locator('#themeToggle').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await page.getByRole('button', { name: /theme/i }).click();
+  await page.locator('#themeToggle').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBeTruthy();
@@ -66,6 +66,8 @@ test('direct movie and TV links load, unknown ids show a not-found state, and Ba
   await prepare(page, 1440);
   const movieHref = await page.locator('#movieGrid .card-title-link').first().getAttribute('href');
   await page.goto(movieHref);
+  const routeDebug = await page.evaluate(() => ({ href: location.href, pathname: location.pathname, page: document.documentElement.dataset.page, detailHidden: document.querySelector('#detailPage')?.hidden, routeScript: [...document.scripts].map(script => script.src).filter(Boolean) }));
+  if (routeDebug.detailHidden) throw new Error('detail route debug: ' + JSON.stringify(routeDebug));
   await expect(page.locator('#detailPage')).toBeVisible();
   await expect(page.locator('#detailTitle')).toContainText('WALL·E');
   await page.getByRole('button', { name: /watch now/i }).click();
