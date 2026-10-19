@@ -6,7 +6,7 @@
 
 ## 1. Ground truth and baseline
 
-The tag legacy-site-backup was checked through GitHub and does not resolve (404). The prototype rapiflix-hero.html was not attached to the current conversation or found in the connected Library, so this recovery follows the written requirements and the site's existing theme/player. It cannot claim pixel-perfect parity with a prototype that was not available.
+The tag legacy-site-backup was checked through GitHub and does not resolve (404). The user subsequently supplied Rapiflix.html, which has now been inspected directly and is treated as the design/behavior reference for this follow-up. It specifies the hero and quick-view flow, dedicated title page, real-data facts, budget/box-office visualization, cast strip, TV season/episode list, related titles, poster containment with a blurred backing, theme changes and motion details. The prototype's hard-coded list, approximate facts, color-block poster placeholders, fake episode names and simulated player are not copied into the live implementation.
 
 | Reference | Commit / date | Why it was selected |
 |---|---|---|
@@ -77,6 +77,20 @@ The checkpoint does not prove the original site actually ran at that point. Ther
 **Evidence:** styles.css used object-fit:cover for hero and catalogue poster images, including a hover transform that zoomed the image inside an overflow-hidden frame. The popup poster is a CSS background image but its background sizing was not set to contain.
 
 **Fix in this branch:** posters now use object-fit:contain in the hero, catalogue cards, popup, title profile and recommendations; background posters use background-size:contain; hover scaling is disabled for poster art. Backdrops remain cover-cropped because they are cinematic backgrounds, not poster artwork.
+
+## Prototype-to-production mapping
+
+| Prototype element | Recovery implementation |
+|---|---|
+| Title popup → dedicated film page | Existing popup navigates to the real `/details/:slug?id=…&type=movie|tv` route. |
+| Poster plus cinematic backing | The title hero and catalogue cards display the entire poster over a blurred copy of the same TMDB artwork. |
+| Watch section and simulated controls | A real VidCore iframe is mounted in the title page; movie and TV embed routes follow the existing player paths. |
+| Title facts | Runtime, release, genre, language, status, ratings, seasons and episode counts come from TMDB; unknown values stay “Not reported”. |
+| Budget and box-office bars | Animated bars use TMDB-reported numeric values only. No estimated figures are inserted. |
+| Cast, season chips and episode list | Real TMDB people/season/episode records, with a fallback message if metadata is unavailable. |
+| More like this | TMDB recommendations and similar titles open their own dedicated profiles. |
+| Trending row | The main trending catalogue is a horizontal, touch-scrollable rail; movie/series/anime/search catalogues retain existing filters and live catalogue data. |
+| Fake facts and simulated playback | Not ported. The current TMDB catalogue, saved list, language/provider lookups and existing VidCore player are retained. |
 
 ## 3. API/config audit
 
