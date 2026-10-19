@@ -80,7 +80,12 @@ export async function onRequest(context) {
         "X-Content-Type-Options": "nosniff"
       }
     });
-  } catch (_) {
+  } catch (error) {
+    // Log only the validated endpoint and error class. Never log the API key or full upstream URL.
+    console.error("Rapiflix TMDB upstream request failed", {
+      path,
+      errorName: error instanceof Error ? error.name : "UnknownError"
+    });
     return errorResponse("The TMDB service could not be reached.", 502);
   }
 }
