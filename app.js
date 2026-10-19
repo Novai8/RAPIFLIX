@@ -1073,6 +1073,9 @@
       $('#detailEyebrow').textContent=[isTv?'SERIES PROFILE':'FEATURE FILM PROFILE',detail.status].filter(Boolean).join(' · ').toUpperCase();
       $('#detailOverview').textContent=detail.overview||'No synopsis is available yet. Explore the cast, creative team and production information below.';
       const poster=$('#detailPoster');poster.src=detailMovie.poster||'';poster.alt=(title||'Title')+' poster';poster.hidden=!detailMovie.poster;
+      const posterWrap=$('.detail-poster-wrap');
+      if(posterWrap&&detailMovie.poster)posterWrap.style.setProperty('--detail-poster-blur','url("'+detailMovie.poster.replace(/["\\]/g,'')+'")');
+      else if(posterWrap)posterWrap.style.removeProperty('--detail-poster-blur');
       const backdrop=$('#detailBackdrop');if(detailMovie.backdrop)backdrop.style.backgroundImage='url("'+detailMovie.backdrop.replace(/["\\]/g,'')+'")';else backdrop.style.backgroundImage='none';
       const score=Number(detail.vote_average)>0?Number(detail.vote_average).toFixed(1)+'/10':'Not rated';
       const runtime=isTv?(detail.number_of_seasons?detail.number_of_seasons+' season'+(detail.number_of_seasons===1?'':'s'):'Series'):(detail.runtime?detail.runtime+' min':'Runtime unavailable');
