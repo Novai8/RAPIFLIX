@@ -299,8 +299,9 @@ test("CinePro proxy rejects insecure production base URLs", async () => {
 });
 
 test("front-end title, playback, and poster contracts remain wired", async () => {
-  const [app, routes, html, css] = await Promise.all([
-    read("app.js"), read("routes.js"), read("index.html"), read("styles.css")
+  const [app, routes, html, css, pagesRoutes, redirects] = await Promise.all([
+    read("app.js"), read("routes.js"), read("index.html"), read("styles.css"),
+    read("_routes.json"), read("_redirects")
   ]);
   assert.match(html, /id="modalBackdrop"/);
   assert.match(html, /id="modalPlay"/);
@@ -313,6 +314,10 @@ test("front-end title, playback, and poster contracts remain wired", async () =>
   assert.match(app, /document\.addEventListener\('rapiflix:detail-page'/);
   assert.match(routes, /path\.startsWith\('\/details\/'\)/);
   assert.match(routes, /new CustomEvent\('rapiflix:detail-page'/);
+  assert.match(redirects, /\/details\/\* \/ 200/);
+  assert.ok(JSON.parse(pagesRoutes).include.includes("/api/health"));
+  assert.match(app, /withTimeout\(tmdbRequest\('tv\//);
+
   assert.match(css, /\.modal-backdrop,\.player-backdrop\{/);
   assert.match(css, /\[hidden\]\{display:none!important\}/);
   assert.match(css, /\.cursor-dot,\.cursor-ring\{[^}]*pointer-events:none/s);
