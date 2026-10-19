@@ -1045,10 +1045,11 @@
     try{
       // Fetch the title itself first so Watch now becomes usable without waiting
       // for optional cast, recommendations, trailer and provider metadata.
-      const baseResponse=await Promise.race([
+      const baseResponse=await withTimeout(
         tmdbRequest(base,{language:'en-US'}).then(async response=>({ok:response.ok,data:await response.json()})),
-        new Promise(resolve=>setTimeout(()=>resolve({ok:false,data:{status_message:'The title service took too long to respond.'}}),10000))
-      ]);
+        10000,
+        'The title service took too long to respond.'
+      ).catch(()=>({ok:false,data:{status_message:'The title service took too long to respond.'}}));
       if(activeDetailRequest!==requestKey)return;
       const detail=baseResponse.data;
       if(!baseResponse.ok||!detail||!detail.id)throw new Error('Rapiflix could not load this title from TMDB.');
@@ -1060,10 +1061,11 @@
       $('#detailWatchNow').innerHTML='▶ <span>Watch now</span>';
       const extraEndpoints=[base+'/credits',base+'/recommendations',base+'/similar',base+'/videos',base+'/watch/providers'];
       // Start optional profile requests in parallel, but never hold the visible title page hostage to them.
-      const extrasPromise=Promise.all(extraEndpoints.map(path=>Promise.race([
+      const extrasPromise=Promise.all(extraEndpoints.map(path=>withTimeout(
         tmdbRequest(path,{language:'en-US'}).then(async response=>({ok:response.ok,data:await response.json()})),
-        new Promise(resolve=>setTimeout(()=>resolve({ok:false,data:{}}),7000))
-      ]).catch(()=>({ok:false,data:{}}))));
+        7000,
+        'Optional title metadata request timed out.'
+      ).catch(()=>({ok:false,data:{}}))));
       if(activeDetailRequest!==requestKey)return;
       document.title=title+' | Full Details | Rapiflix';
       const meta=document.querySelector('meta[name="description"]');if(meta)meta.content='Explore '+title+' on Rapiflix: synopsis, cast, production, ratings, budget, related titles and viewing options.';
