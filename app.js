@@ -961,8 +961,8 @@
         const path='/details/'+String(itemTitle||'title').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'?id='+encodeURIComponent(item.id)+'&type='+itemType;
         return '<a class="detail-related-card" href="'+escapeHtml(path)+'"><div class="detail-related-poster">'+(itemPoster?'<img loading="lazy" src="'+escapeHtml(itemPoster)+'" alt="">':'<span>R</span>')+'</div><strong>'+escapeHtml(itemTitle||'Untitled')+'</strong><span>'+escapeHtml(String(itemDate||'').slice(0,4)||'Year unknown')+' · '+escapeHtml(Number(item.vote_average)>0?'★ '+Number(item.vote_average).toFixed(1):'Not rated')+'</span></a>';
       }).join(''):'<p class="detail-loading">No related titles were returned for this entry.</p>';
-      $('#detailWatchNow').onclick=()=>{if(detailMovie)playFilm(detailMovie);};
-      $('#detailSave').onclick=()=>{if(detailMovie){toggleSave(detailMovie.id);$('#detailSave').textContent=saved.has(detailMovie.id)?'♥ Saved to my list':'♡ Save to my list';}};
+      // Detail-page buttons are bound once below. Binding them here as well caused
+      // playback to initialize twice and saved-list clicks to toggle twice.
     }catch(error){
       if(activeDetailRequest!==requestKey)return;
       $('#detailTitle').textContent=titleFallback;$('#detailOverview').textContent='We could not load the full title profile. Check the TMDB connection and try opening this title again.';$('#detailWatchNow').disabled=true;
