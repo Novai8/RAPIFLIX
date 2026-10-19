@@ -1,0 +1,23 @@
+name: Rapiflix recovery contracts
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [fix/rapiflix-recovery]
+
+permissions:
+  contents: read
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run API and front-end contract tests
+        run: node --test tests/recovery-contract.test.mjs
