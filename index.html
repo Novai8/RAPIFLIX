@@ -23,29 +23,28 @@
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div><div class="mouse-glow" aria-hidden="true"></div>
-<div class="loading-curtain loader-sphere-scene" id="loadingCurtain" role="status" aria-label="Loading Rapiflix" aria-live="polite">
-  <div class="space-stars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-  <div class="sphere-stage" aria-hidden="true">
-    <div class="sphere-halo"></div>
-    <div class="movie-sphere">
-      <div class="sphere-glass"></div>
-      <div class="sphere-latitude latitude-one"></div><div class="sphere-latitude latitude-two"></div><div class="sphere-latitude latitude-three"></div>
-      <div class="sphere-longitude longitude-one"></div><div class="sphere-longitude longitude-two"></div>
-      <div class="movie-orbit orbit-a"><span class="movie-token token-popcorn">🍿</span></div>
-      <div class="movie-orbit orbit-b"><span class="movie-token token-film">🎬</span></div>
-      <div class="movie-orbit orbit-c"><span class="movie-token token-star">⭐</span></div>
-      <div class="movie-orbit orbit-d"><span class="movie-token token-ticket">🎟️</span></div>
-      <div class="movie-orbit orbit-e"><span class="movie-token token-tv">📺</span></div>
-      <div class="sphere-core"><span>R</span></div>
+<div class="loading-curtain loader-portal-scene" id="loadingCurtain" role="status" aria-label="Loading Rapiflix" aria-live="polite">
+  <div class="portal-starfield" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="portal-stage" aria-hidden="true">
+    <div class="portal-ground-glow"></div>
+    <div class="portal-ring portal-ring-back"></div>
+    <div class="portal-ring portal-ring-mid"></div>
+    <div class="portal-arch">
+      <div class="portal-inner"></div><div class="portal-vortex"></div>
+      <div class="portal-core-mark">R<span>››</span></div>
+      <div class="portal-energy portal-energy-one"></div><div class="portal-energy portal-energy-two"></div>
+      <span class="portal-particle pp1">✦</span><span class="portal-particle pp2">✧</span><span class="portal-particle pp3">✦</span><span class="portal-particle pp4">·</span><span class="portal-particle pp5">✧</span><span class="portal-particle pp6">✦</span>
     </div>
-    <span class="sphere-spark spark-one">✦</span><span class="sphere-spark spark-two">✧</span><span class="sphere-spark spark-three">✦</span><span class="sphere-spark spark-four">·</span>
+    <div class="portal-floor"></div>
   </div>
-  <div class="loading-center sphere-loading-center">
+  <div class="portal-copy">
     <div class="loader-brand"><span class="chevrons">››</span><span class="loader-word" aria-label="Rapiflix"><span>r</span><span>a</span><span>p</span><span>i</span><span>f</span><span>l</span><span>i</span><span>x</span></span></div>
-    <p class="loader-tagline">A WHOLE UNIVERSE OF STORIES</p>
-    <div class="loader-progress-row"><span id="loaderStatus">Spinning up the movie universe</span><span id="progressNumber">00%</span></div>
+    <p class="loader-tagline">STEP INTO ANOTHER WORLD</p>
+    <div class="loader-progress-row"><span id="loaderStatus">Opening the cinematic portal</span><span id="progressNumber">00%</span></div>
     <div class="progress-track" role="progressbar" aria-label="Loading Rapiflix" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="loaderProgress"><span id="progressFill"></span><i></i></div>
-    <div class="loader-foot"><span class="loader-live-dot"></span><span>POPCORN READY?</span><span id="loaderCounter">00:05</span></div>
+    <div class="loader-foot"><span class="loader-live-dot"></span><span>YOUR NEXT STORY AWAITS</span><span id="loaderCounter">00:05</span></div>
+    <button type="button" class="portal-sound-toggle" id="portalSoundToggle" aria-pressed="false" aria-label="Enable cinematic portal sound"><span class="sound-icon" aria-hidden="true">♫</span><span id="portalSoundLabel">Tap for portal sound</span><span class="sound-toggle-state">OFF</span></button>
+    <p class="portal-sound-note">Sound is optional. Your device stays quiet until you turn it on.</p>
   </div>
 </div>
 <header class="site-header">
@@ -78,17 +77,82 @@
   const progress = document.getElementById('loaderProgress');
   const status = document.getElementById('loaderStatus');
   const counter = document.getElementById('loaderCounter');
+  const soundButton = document.getElementById('portalSoundToggle');
+  const soundLabel = document.getElementById('portalSoundLabel');
+  const soundState = soundButton && soundButton.querySelector('.sound-toggle-state');
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const messages = [
-    [0, 'Warming up the projector'],
-    [18, 'Tuning into the good stuff'],
-    [38, 'Finding your front-row seat'],
-    [60, 'Loading your cinematic universe'],
-    [82, 'Almost time for the opening scene'],
-    [96, 'Lights down. Screen up.']
+    [0, 'Opening the cinematic portal'],
+    [18, 'Charging the story engine'],
+    [38, 'Finding your next adventure'],
+    [60, 'Crossing into the movie universe'],
+    [82, 'Almost through the portal'],
+    [96, 'Destination: Rapiflix']
   ];
   const started = performance.now();
   const duration = 3500;
-  let lastMessage = -1;
+  let lastMessage = -1, soundEnabled = false, audioContext = null, finished = false;
+  function playPortalSound() {
+    if (!soundEnabled || !audioContext || audioContext.state !== 'running') return;
+    const ctx = audioContext, now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.11, now + 0.16);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 1.65);
+    master.connect(ctx.destination);
+    const low = ctx.createOscillator(), lowGain = ctx.createGain();
+    low.type = 'sine';
+    low.frequency.setValueAtTime(92, now);
+    low.frequency.exponentialRampToValueAtTime(38, now + 1.25);
+    lowGain.gain.setValueAtTime(0.0001, now);
+    lowGain.gain.exponentialRampToValueAtTime(0.8, now + 0.2);
+    lowGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.5);
+    low.connect(lowGain); lowGain.connect(master); low.start(now); low.stop(now + 1.55);
+    const shimmer = ctx.createOscillator(), shimmerGain = ctx.createGain();
+    shimmer.type = 'triangle';
+    shimmer.frequency.setValueAtTime(660, now + 0.08);
+    shimmer.frequency.exponentialRampToValueAtTime(1320, now + 0.72);
+    shimmerGain.gain.setValueAtTime(0.0001, now);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.19, now + 0.16);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.25);
+    shimmer.connect(shimmerGain); shimmerGain.connect(master); shimmer.start(now); shimmer.stop(now + 1.3);
+    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.85), ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const noise = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), noiseGain = ctx.createGain();
+    noise.buffer = buffer; filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1600, now); filter.frequency.exponentialRampToValueAtTime(240, now + 0.8);
+    noiseGain.gain.setValueAtTime(0.0001, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.22, now + 0.12);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.82);
+    noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(master);
+    noise.start(now); noise.stop(now + 0.86);
+  }
+  if (soundButton) soundButton.addEventListener('click', async () => {
+    if (!soundEnabled) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) throw new Error('Audio is unavailable');
+        if (!audioContext) audioContext = new AudioCtx();
+        if (audioContext.state === 'suspended') await audioContext.resume();
+        soundEnabled = true;
+        soundButton.setAttribute('aria-pressed', 'true');
+        soundButton.setAttribute('aria-label', 'Disable cinematic portal sound');
+        if (soundLabel) soundLabel.textContent = 'Portal sound enabled';
+        if (soundState) soundState.textContent = 'ON';
+        playPortalSound();
+      } catch (_) {
+        if (soundLabel) soundLabel.textContent = 'Sound unavailable on this device';
+      }
+    } else {
+      soundEnabled = false;
+      soundButton.setAttribute('aria-pressed', 'false');
+      soundButton.setAttribute('aria-label', 'Enable cinematic portal sound');
+      if (soundLabel) soundLabel.textContent = 'Tap for portal sound';
+      if (soundState) soundState.textContent = 'OFF';
+      if (audioContext && audioContext.state === 'running') audioContext.suspend();
+    }
+  });
   function tick(now) {
     const elapsed = now - started;
     const ratio = Math.min(1, elapsed / duration);
@@ -102,21 +166,24 @@
       counter.textContent = '00:' + String(seconds).padStart(2, '0');
     }
     const messageIndex = messages.reduce((chosen, item, index) => pct >= item[0] ? index : chosen, 0);
-    if (messageIndex !== lastMessage && status) {
-      status.textContent = messages[messageIndex][1];
-      lastMessage = messageIndex;
-    }
-    if (elapsed < duration) {
-      requestAnimationFrame(tick);
-    } else {
+    if (messageIndex !== lastMessage && status) { status.textContent = messages[messageIndex][1]; lastMessage = messageIndex; }
+    if (elapsed < duration) requestAnimationFrame(tick);
+    else {
       if (fill) fill.style.width = '100%';
       if (number) number.textContent = '100%';
       if (progress) progress.setAttribute('aria-valuenow', '100');
+      if (finished) return;
+      finished = true;
+      if (soundEnabled) playPortalSound();
+      curtain.classList.add('portal-opening');
       window.setTimeout(() => {
         curtain.classList.add('done');
-        window.setTimeout(() => { curtain.hidden = true; }, 1050);
-      }, 450);
+        window.setTimeout(() => { curtain.hidden = true; if (audioContext && audioContext.state === 'running') audioContext.close(); }, 900);
+      }, 480);
     }
+  }
+  if (reducedMotion) {
+    curtain.classList.add('reduced-motion-loader');
   }
   requestAnimationFrame(tick);
 })();
