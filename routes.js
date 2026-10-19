@@ -183,17 +183,9 @@
         document.body.classList.add('modal-open');
         const title=$('#modalTitle')?.textContent?.trim()||'title';
         state.modalSlug=slugify(title);
-        const id=modal.dataset.titleId||'';
-        const type=modal.dataset.titleType||'';
-        const params=new URLSearchParams();
-        if(id)params.set('id',id);
-        if(type)params.set('type',type);
-        const path='/title/'+state.modalSlug+(params.toString()?'?'+params.toString():'');
-        if(location.pathname+location.search!==path)history.pushState({rapiflix:true},'',path);
-        setNav('title');
         document.title=title+' | Rapiflix';
         setHue(titleHue(title));
-      }else if(state.page==='title'&&location.pathname.startsWith('/title/')){
+      }else if($('#playerBackdrop')?.hidden){
         document.body.classList.remove('modal-open');
       }
     });
