@@ -90,6 +90,43 @@
     state.page=r.page;
     setNav(r.page,r.query||'');
     setPageCopy(r.page,r.query||'');
+    if(r.page==='detail'){
+      state.modalSlug='';state.titleSearchRequested='';
+      const modal=$('#modalBackdrop');if(modal)modal.hidden=true;
+      document.body.classList.remove('modal-open');
+      document.dispatchEvent(new CustomEvent('rapiflix:detail-page',{detail:{id:r.id,type:r.type,slug:r.slug}}));
+    }else if(r.page==='title'){
+      state.modalSlug=r.slug;
+      const card=findTitleCard(r);
+      if(card){
+        state.titleSearchRequested='';
+        if($('#modalBackdrop')?.hidden||$('#modalBackdrop')?.dataset.titleLoading==='1')card.click();
+      }else{
+        showTitleLoading(r);
+        const key=r.slug+'|'+r.id+'|'+r.type;
+        if(key&&state.titleSearchRequested!==key){
+          state.titleSearchRequested=key;
+          const query=(r.slug||'').replace(/-/g,' ').trim();
+          if(query)document.dispatchEvent(new CustomEvent('rapiflix:search-submit',{detail:{query,committed:true}}));
+          setTimeout(()=>{
+            const modal=$('#modalBackdrop');
+            if(state.page==='title'&&state.titleSearchRequested===key&&modal?.dataset.titleLoading==='1'){
+              $('#modalTitle').textContent=(r.slug||'Title unavailable').replace(/-/g,' ');
+              $('#modalDescription').textContent='Rapiflix could not find this title in the current catalogue. Go back and search for its exact name.';
+              $('#sourceNote').textContent='The title may be unavailable, or the catalogue search may have failed.';
+              $('#modalPlay').disabled=true;
+              $('#modalSave').disabled=true;
+            }
+          },12000);
+        }
+      }
+    }else{
+      state.modalSlug='';
+      state.titleSearchRequested='';
+      const back=$('#modalBackdrop');
+      if(back&&!back.hidden)back.hidden=true;
+      document.body.classList.remove('modal-open');
+    }
     window.scrollTo(0,{behavior:reduced?'auto':'smooth'});
     const main=$('#appMain');
     if(main){main.style.animation='none';void main.offsetWidth;main.style.animation='';}
@@ -133,6 +170,11 @@
       const subtitle=$('#pageSubtitle');
       if(subtitle)subtitle.textContent=cards.length?'Hover a title to recolor the page.':'Try a title, genre, content type or year.';
     }
+    if(location.pathname.startsWith('/title/')&&($('#modalBackdrop')?.hidden||$('#modalBackdrop')?.dataset.titleLoading==='1')){
+      const currentRoute=route();
+      const match=findTitleCard(currentRoute);
+      if(match)match.click();
+    }
   }
   function monitorModal(){
     const modal=$('#modalBackdrop');if(!modal)return;
@@ -141,17 +183,9 @@
         document.body.classList.add('modal-open');
         const title=$('#modalTitle')?.textContent?.trim()||'title';
         state.modalSlug=slugify(title);
-        const id=modal.dataset.titleId||'';
-        const type=modal.dataset.titleType||'';
-        const params=new URLSearchParams();
-        if(id)params.set('id',id);
-        if(type)params.set('type',type);
-        const path='/title/'+state.modalSlug+(params.toString()?'?'+params.toString():'');
-        if(location.pathname+location.search!==path)history.pushState({rapiflix:true},'',path);
-        setNav('title');
         document.title=title+' | Rapiflix';
         setHue(titleHue(title));
-      }else if(state.page==='title'&&location.pathname.startsWith('/title/')){
+      }else if($('#playerBackdrop')?.hidden){
         document.body.classList.remove('modal-open');
       }
     });

@@ -19,5 +19,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Check JavaScript syntax
+        run: node --check app.js && node --check routes.js
       - name: Run API and front-end contract tests
         run: node --test tests/recovery-contract.test.mjs
