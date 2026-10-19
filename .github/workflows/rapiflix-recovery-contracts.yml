@@ -38,4 +38,4 @@ jobs:
       - name: Run API and front-end unit contracts
         run: npm test
       - name: Run Playwright browser contracts
-        run: npm run test:e2e
+        run: npm run test:e2e -- --reporter=github
