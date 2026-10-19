@@ -19,7 +19,7 @@
 <title>Rapiflix: Discover Movies, TV Series & Anime</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Unbounded:wght@500;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20261019-cinematic-loader">
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div><div class="mouse-glow" aria-hidden="true"></div>
@@ -41,7 +41,7 @@
     <div class="progress-track" role="progressbar" aria-label="Loading Rapiflix" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="loaderProgress"><span id="progressFill"></span><i></i></div>
     <div class="loader-foot"><span class="loader-live-dot"></span><span>YOUR NEXT STORY AWAITS</span><span id="loaderCounter">00:04</span></div>
     <button type="button" class="portal-sound-toggle" id="portalSoundToggle" aria-pressed="true" aria-label="Disable cinematic loading sound"><span class="sound-icon" aria-hidden="true">♫</span><span id="portalSoundLabel">Cinematic sound enabled</span><span class="sound-toggle-state">ON</span></button>
-    <p class="portal-sound-note">Cinematic sound is on by default. Some browsers require your first tap before audio can play.</p>
+    <p class="portal-sound-note">Sound may start after your first tap.</p>
   </div>
 </div>
 <header class="site-header">
@@ -202,5 +202,5 @@
   requestAnimationFrame(tick);
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js" crossorigin="anonymous"></script><script src="app.js"></script><script src="routes.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js" crossorigin="anonymous"></script><script src="app.js?v=20261019-cinematic-loader"></script><script src="routes.js?v=20261019-cinematic-loader"></script>
 </body></html>
