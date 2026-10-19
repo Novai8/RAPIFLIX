@@ -27,7 +27,7 @@
   <div class="loader-sky" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <div class="loader-visual" aria-hidden="true">
     <div class="loader-scene scene-universe"><div class="universe-orbit orbit-a"></div><div class="universe-orbit orbit-b"></div><div class="universe-planet"></div><span class="floating-prop prop-popcorn">🍿</span><span class="floating-prop prop-ticket">🎟</span><span class="floating-prop prop-clapper">🎬</span><span class="floating-prop prop-screen">▣</span><span class="universe-star star-a">✦</span><span class="universe-star star-b">✧</span><span class="universe-star star-c">✦</span></div>
-    <div class="loader-scene scene-portal"><div class="portal-ground"></div><div class="portal-ring portal-ring-a"></div><div class="portal-ring portal-ring-b"></div><div class="portal-gate"><div class="portal-depth"></div><div class="portal-swirl"></div><span class="portal-logo">R<span>››</span></span></div><i class="portal-spark spark-a">✦</i><i class="portal-spark spark-b">✧</i><i class="portal-spark spark-c">✦</i><i class="portal-spark spark-d">·</i></div>
+    <div class="loader-scene scene-portal is-active"><div class="portal-ground"></div><div class="portal-ring portal-ring-a"></div><div class="portal-ring portal-ring-b"></div><div class="portal-gate"><div class="portal-depth"></div><div class="portal-swirl"></div><span class="portal-logo">R<span>››</span></span></div><i class="portal-spark spark-a">✦</i><i class="portal-spark spark-b">✧</i><i class="portal-spark spark-c">✦</i><i class="portal-spark spark-d">·</i></div>
     <div class="loader-scene scene-logo"><div class="logo-fragment fragment-a">R</div><div class="logo-fragment fragment-b">A</div><div class="logo-fragment fragment-c">P</div><div class="logo-fragment fragment-d">››</div><div class="logo-shockwave"></div><div class="logo-sparkles">✦　·　✧　·　✦</div></div>
     <div class="loader-scene scene-cube"><div class="glass-cube"><div class="cube-face cube-front"><span>▶</span><b>R</b></div><div class="cube-face cube-back">✦</div><div class="cube-face cube-left">▤</div><div class="cube-face cube-right">▶</div><div class="cube-face cube-top">✧</div><div class="cube-face cube-bottom">R</div></div><span class="cube-orbit cube-orbit-a"></span><span class="cube-orbit cube-orbit-b"></span><i class="cube-glint">✦</i></div>
     <div class="loader-scene scene-rocket"><div class="rocket-trail"></div><div class="popcorn-rocket"><span class="rocket-fin"></span><span class="rocket-window">▶</span><span class="rocket-pop">🍿</span><span class="rocket-flame"></span></div><span class="rocket-pickup pickup-a">🎟</span><span class="rocket-pickup pickup-b">✦</span><span class="rocket-pickup pickup-c">★</span><div class="rocket-planet"></div></div>
@@ -83,6 +83,7 @@
   const chosen = scenes[Math.floor(Math.random() * scenes.length)];
   curtain.dataset.scene = chosen.id;
   curtain.setAttribute('aria-label', 'Loading Rapiflix: ' + chosen.tagline.toLowerCase());
+  curtain.querySelectorAll('.loader-scene').forEach(scene => scene.classList.remove('is-active'));
   const sceneEl = curtain.querySelector('.scene-' + chosen.id);
   if (sceneEl) sceneEl.classList.add('is-active');
   const tagline = document.getElementById('loaderTagline');
