@@ -23,7 +23,20 @@
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div><div class="mouse-glow" aria-hidden="true"></div>
-<div class="loading-curtain" id="loadingCurtain" role="status" aria-label="Loading Rapiflix"><div class="loading-center"><div class="loader-brand"><span class="chevrons">››</span><span class="loader-word">rapiflix</span></div><div class="progress-track"><span id="progressFill"></span></div><span id="progressNumber">0%</span></div></div>
+<div class="loading-curtain" id="loadingCurtain" role="status" aria-label="Loading Rapiflix" aria-live="polite">
+  <div class="loader-noise" aria-hidden="true"></div><div class="loader-orbit orbit-one" aria-hidden="true"></div><div class="loader-orbit orbit-two" aria-hidden="true"></div><div class="loader-orbit orbit-three" aria-hidden="true"></div>
+  <div class="loader-particles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="loading-center">
+    <div class="loader-emblem" aria-hidden="true"><span class="emblem-shard shard-a"></span><span class="emblem-shard shard-b"></span><span class="emblem-core">R</span></div>
+    <div class="loader-brand"><span class="chevrons">››</span><span class="loader-word" aria-label="Rapiflix"><span>r</span><span>a</span><span>p</span><span>i</span><span>f</span><span>l</span><span>i</span><span>x</span></span></div>
+    <p class="loader-tagline">YOUR NEXT STORY STARTS HERE</p>
+    <div class="loader-filmstrip" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="loader-progress-row"><span id="loaderStatus">Warming up the projector</span><span id="progressNumber">00%</span></div>
+    <div class="progress-track" role="progressbar" aria-label="Loading Rapiflix" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="loaderProgress"><span id="progressFill"></span><i></i></div>
+    <div class="loader-foot"><span class="loader-live-dot"></span><span>DISCOVER · WATCH · REPEAT</span><span id="loaderCounter">00:05</span></div>
+  </div>
+  <span class="loader-corner corner-tl" aria-hidden="true"></span><span class="loader-corner corner-tr" aria-hidden="true"></span><span class="loader-corner corner-bl" aria-hidden="true"></span><span class="loader-corner corner-br" aria-hidden="true"></span>
+</div>
 <header class="site-header">
 <a class="brand" href="/" aria-label="Rapiflix home"><svg viewBox="0 0 28 22" aria-hidden="true"><path d="M2 2h7l8 9-8 9H2l8-9zM13 2h7l8 9-8 9h-7l8-9z" fill="currentColor"/></svg><span>rapiflix</span></a>
 <nav class="tabs" aria-label="Main navigation"><span class="tab-indicator" id="tabIndicator"></span><a href="/" data-route="trending">Trending</a><a href="/movies" data-route="movies">Movies</a><a href="/series" data-route="series">Series</a><a href="/anime" data-route="anime">Anime</a></nav>
@@ -45,5 +58,57 @@
 <nav class="nav-links" hidden aria-hidden="true"><a href="/">Trending</a><a href="/movies">Movies</a><a href="/series">Series</a><a href="/anime">Anime</a></nav>
 <div class="runtime-compat" hidden><span id="heroYear"></span><span id="heroGenre"></span><span id="savedCount"></span><button id="savedToggle"></button><button id="sortButton"></button><button id="menuButton"></button><div id="genreChips"></div><select id="watchRegion"><option value="US">United States</option></select><span id="cineProStatus"></span><select id="playerSource"></select><select id="playerQuality"></select><select id="playerSubtitles"></select><select id="playerAudio"></select></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div><div class="cursor-dot" aria-hidden="true"></div><div class="cursor-ring" aria-hidden="true"><span>View</span></div>
+<script>
+(() => {
+  const curtain = document.getElementById('loadingCurtain');
+  if (!curtain) return;
+  const fill = document.getElementById('progressFill');
+  const number = document.getElementById('progressNumber');
+  const progress = document.getElementById('loaderProgress');
+  const status = document.getElementById('loaderStatus');
+  const counter = document.getElementById('loaderCounter');
+  const messages = [
+    [0, 'Warming up the projector'],
+    [18, 'Tuning into the good stuff'],
+    [38, 'Finding your front-row seat'],
+    [60, 'Loading your cinematic universe'],
+    [82, 'Almost time for the opening scene'],
+    [96, 'Lights down. Screen up.']
+  ];
+  const started = performance.now();
+  const duration = 4200;
+  let lastMessage = -1;
+  function tick(now) {
+    const elapsed = now - started;
+    const ratio = Math.min(1, elapsed / duration);
+    const eased = 1 - Math.pow(1 - ratio, 2.2);
+    const pct = Math.min(100, Math.round(eased * 100));
+    if (fill) fill.style.width = pct + '%';
+    if (number) number.textContent = String(pct).padStart(2, '0') + '%';
+    if (progress) progress.setAttribute('aria-valuenow', String(pct));
+    if (counter) {
+      const seconds = Math.max(0, Math.ceil((5000 - elapsed) / 1000));
+      counter.textContent = '00:' + String(seconds).padStart(2, '0');
+    }
+    const messageIndex = messages.reduce((chosen, item, index) => pct >= item[0] ? index : chosen, 0);
+    if (messageIndex !== lastMessage && status) {
+      status.textContent = messages[messageIndex][1];
+      lastMessage = messageIndex;
+    }
+    if (elapsed < duration) {
+      requestAnimationFrame(tick);
+    } else {
+      if (fill) fill.style.width = '100%';
+      if (number) number.textContent = '100%';
+      if (progress) progress.setAttribute('aria-valuenow', '100');
+      window.setTimeout(() => {
+        curtain.classList.add('done');
+        window.setTimeout(() => { curtain.hidden = true; }, 1050);
+      }, 450);
+    }
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js" crossorigin="anonymous"></script><script src="app.js"></script><script src="routes.js"></script>
 </body></html>
