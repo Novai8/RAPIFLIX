@@ -307,3 +307,114 @@ html[data-page=search] #movieGrid .movie-card {
 .site-header .search-suggestions {
   z-index: 10023;
 }
+
+/* Layout fixes: controls stay in their own rows at narrow widths. */
+.header-actions{display:flex;align-items:center;justify-content:flex-end;flex:0 1 auto;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}
+.header-actions>*{min-width:0;max-width:100%}
+.cross-site-cta{max-width:100%;white-space:normal;line-height:1.35;text-align:center}
+.search-wrap{flex:0 1 220px;width:clamp(120px,18vw,220px);min-width:0;max-width:100%}
+.search-wrap:focus-within{width:min(260px,70vw)}
+.hero-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;max-width:100%;min-width:0}
+.hero-actions>*{max-width:100%;min-width:0}
+.free-movie-cta{flex:0 1 auto;white-space:normal;text-align:center;line-height:1.35}
+.tmdb-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;min-width:0}
+.tmdb-actions{display:flex;flex:1 1 100%;align-items:center;flex-wrap:wrap;gap:8px;min-width:0}
+.tmdb-tab,.tmdb-connect{flex:0 1 auto;max-width:100%;min-height:38px;line-height:1.3;white-space:normal;overflow-wrap:anywhere}
+.tmdb-status{flex:1 1 100%;min-width:0;margin:0;line-height:1.6;overflow-wrap:anywhere}
+.section-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0;max-width:100%}
+.section-tools select{min-width:0;max-width:100%}
+.card-title-link{display:inline-block;max-width:100%;min-width:0;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}
+.card-title-link:hover{color:var(--btn);text-decoration:underline;text-underline-offset:3px}
+.card-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;min-width:0}
+.card-title{min-width:0;overflow-wrap:anywhere}.card-year{flex:0 0 auto}
+.card-play,.save-card{z-index:4}
+.provider-head{display:flex;align-items:flex-start;flex-wrap:wrap;gap:12px;justify-content:space-between}
+.provider-head select{min-width:0;max-width:100%}
+.provider-group,.provider-pill,.store-search-link{max-width:100%;overflow-wrap:anywhere}
+.modal-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.modal-actions>*{min-width:0;max-width:100%;white-space:normal;line-height:1.35}
+.trailer-preview iframe{display:block;max-width:100%;width:100%;aspect-ratio:16/9;min-height:200px;border:0}
+
+/* /title/:slug is a genuine full-screen detail page, not a small dialog over the catalogue. */
+html[data-page=title] .site-header,
+html[data-page=title] footer,
+html[data-page=title] .color-panel,
+html[data-page=title] #appMain>section{display:none!important}
+html[data-page=title] .modal-backdrop:not([hidden]){
+  position:fixed;inset:0;z-index:10050;display:flex;align-items:stretch;justify-content:center;
+  padding:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+  background:var(--bg);backdrop-filter:none;-webkit-backdrop-filter:none;
+}
+html[data-page=title] .film-modal{
+  display:grid;grid-template-columns:minmax(180px,310px) minmax(0,1fr);
+  gap:clamp(24px,4.5vw,68px);align-items:start;width:min(1440px,100%);max-width:100%;
+  min-height:100vh;max-height:none;margin:0 auto;overflow:visible;border:0;border-radius:0;
+  padding:clamp(86px,10vh,112px) clamp(20px,5vw,76px) 72px;
+  background:transparent;box-shadow:none;animation:none;
+}
+html[data-page=title] .modal-close{
+  position:fixed;top:16px;right:18px;z-index:10070;display:inline-flex;align-items:center;justify-content:center;
+  width:auto;min-width:80px;min-height:42px;padding:0 15px;border-radius:999px;background:var(--bg);color:var(--fg);
+  border-color:color-mix(in srgb,var(--fg) 30%,transparent);font-size:13px;white-space:nowrap;
+}
+html[data-page=title] .modal-poster{
+  position:sticky;top:28px;width:100%;max-width:310px;height:auto;aspect-ratio:2/3;margin:0;
+  border-radius:16px;background-size:cover;background-position:center;
+}
+html[data-page=title] .modal-body{min-width:0;width:100%;max-width:900px}
+html[data-page=title] .modal-body h2{
+  max-width:18ch;margin:0 70px 16px 0;font-size:clamp(30px,4.5vw,64px);line-height:1.1;overflow-wrap:anywhere;
+}
+html[data-page=title] .modal-meta{display:flex;flex-wrap:wrap;gap:8px 12px;line-height:1.6}
+html[data-page=title] .modal-body>p,
+html[data-page=title] .source-note,
+html[data-page=title] .provider-options,
+html[data-page=title] .language-panel{overflow-wrap:anywhere}
+html[data-page=title] .provider-options,
+html[data-page=title] .store-searches,
+html[data-page=title] .provider-group{min-width:0;max-width:100%}
+html[data-page=title] .modal-actions button{min-height:44px}
+html[data-page=title] .trailer-preview iframe{width:100%;max-width:100%;aspect-ratio:16/9;min-height:220px;max-height:560px}
+html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
+@media(max-width:900px){
+  .site-header{align-items:center;gap:12px}
+  .header-actions{gap:7px}
+  .search-wrap{flex:0 1 180px;width:clamp(120px,24vw,180px)}
+  .cross-site-cta{font-size:11px;padding:0 10px}
+  .tmdb-actions{gap:7px}
+  .tmdb-tab,.tmdb-connect{flex:1 1 120px}
+}
+@media(max-width:760px){
+  .hero-actions{gap:8px}
+  .hero-actions .primary-button,.hero-actions .ghost-button{flex:1 1 auto}
+  .hero-actions .free-movie-cta{flex:1 1 100%;width:100%}
+  .tmdb-actions .tmdb-tab,.tmdb-actions .tmdb-connect{flex:1 1 calc(50% - 8px);min-width:0}
+  .section-tools select{flex:1 1 125px}
+  html[data-page=title] .film-modal{grid-template-columns:minmax(0,1fr);gap:20px;padding:82px 20px 48px}
+  html[data-page=title] .modal-poster{position:relative;top:auto;width:min(185px,52vw);max-width:185px}
+  html[data-page=title] .modal-body h2{font-size:clamp(28px,8vw,46px);margin-right:0}
+}
+@media(max-width:560px){
+  .site-header{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:10px;padding:14px 16px 10px}
+  .site-header .brand{grid-column:1;grid-row:1}
+  .tabs{order:initial;grid-column:1;grid-row:3;width:100%;min-width:0}
+  .header-actions{grid-column:1;grid-row:2;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;justify-content:stretch;width:100%;gap:8px}
+  .cross-site-cta{grid-column:1;grid-row:1;width:100%;min-height:36px;padding:7px 10px;white-space:normal}
+  .search-wrap,.search-wrap:focus-within{grid-column:1;grid-row:2;width:100%;min-width:0;max-width:none}
+  .theme-toggle{grid-column:2;grid-row:2}
+  .header-actions{grid-template-rows:auto auto}
+  .hero-actions .primary-button,.hero-actions .ghost-button{flex:1 1 calc(50% - 8px)}
+  .hero-actions .free-movie-cta{flex-basis:100%}
+  .tmdb-toolbar{align-items:stretch}
+  .tmdb-actions .tmdb-tab,.tmdb-actions .tmdb-connect{flex:1 1 calc(50% - 8px);min-height:40px;padding:10px 9px}
+  .tmdb-status{font-size:11px}
+  .modal-actions button{flex:1 1 140px}
+  html[data-page=title] .modal-close{top:10px;right:10px;min-height:38px;min-width:76px}
+  html[data-page=title] .film-modal{padding:66px 16px 38px}
+}
+@media(max-width:380px){
+  .hero-actions .primary-button,.hero-actions .ghost-button{flex-basis:100%;width:100%}
+  .tmdb-actions .tmdb-tab,.tmdb-actions .tmdb-connect{flex:1 1 100%}
+  .section-tools{display:grid;grid-template-columns:minmax(0,1fr)}
+}
+.modal-close{width:auto;min-width:40px;max-width:100%;padding:0 13px;font-size:13px;white-space:nowrap}
