@@ -228,9 +228,8 @@ test("front-end title, playback, and poster contracts remain wired", async () =>
   assert.match(css, /\[hidden\]\{display:none!important\}/);
   assert.match(css, /\.cursor-dot,\.cursor-ring\{[^}]*pointer-events:none/s);
   assert.match(css, /\.mouse-glow\{[^}]*pointer-events:none/s);
-  for (const selector of ["\.hero-poster img", "\.movie-card img", "\.modal-poster img", "\.detail-poster-wrap img", "\.detail-related-poster img", "\.search-suggestion-art img"]) {
-    const position = css.indexOf(selector.replace(/\\/g, ""));
-    assert.notEqual(position, -1, "missing poster object-fit rule for " + selector);
+  for (const selector of ["hero-poster img", "movie-card img", "modal-poster img", "detail-poster-wrap img", "detail-related-poster img", "search-suggestion-art img"]) {
+    assert.ok(css.includes(selector), "missing poster object-fit rule for " + selector);
   }
   assert.match(css, /object-fit: contain !important/);
 });
