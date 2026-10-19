@@ -902,7 +902,7 @@
     const titleFallback=(route.slug||'').replace(/-/g,' ')||'Loading title…';
     $('#detailTitle').textContent=titleFallback;$('#detailOverview').textContent='Gathering the story, cast, production details and viewing information.';
     $('#detailCast').innerHTML='<p class="detail-loading">Finding the cast…</p>';$('#detailCrew').innerHTML='<p class="detail-loading">Finding key crew…</p>';$('#detailProduction').innerHTML='<p class="detail-loading">Loading production details…</p>';$('#detailRecommendations').innerHTML='<p class="detail-loading">Finding related titles…</p>';
-    $('#detailWatchNow').disabled=true;$('#detailWatchNow').innerHTML='Loading title…';$('#detailTrailer').hidden=true;$('#detailFacts').replaceChildren();
+    $('#detailWatchNow').disabled=false;$('#detailWatchNow').innerHTML='▶ <span>Watch now</span>';$('#detailTrailer').hidden=true;$('#detailFacts').replaceChildren();
     const base=media+'/'+encodeURIComponent(id);
     try{
       // Fetch the title itself first so Watch now becomes usable without waiting
@@ -980,14 +980,33 @@
       // playback to initialize twice and saved-list clicks to toggle twice.
     }catch(error){
       if(activeDetailRequest!==requestKey)return;
-      $('#detailTitle').textContent=titleFallback;$('#detailOverview').textContent='The title service did not respond in time or could not find this title. Check your connection, then retry. Your page is still available.';$('#detailWatchNow').disabled=false;$('#detailWatchNow').textContent='↻ Retry loading title';
+      $('#detailTitle').textContent=titleFallback;$('#detailOverview').textContent='The title details service did not respond, but you can still try the player. Check the connection and reload the page for cast and production information.';$('#detailWatchNow').disabled=false;$('#detailWatchNow').innerHTML='▶ <span>Watch now</span>';
       $('#detailCast').innerHTML='<p class="detail-loading">Cast information is unavailable right now.</p>';$('#detailCrew').innerHTML='<p class="detail-loading">Crew information is unavailable right now.</p>';$('#detailProduction').innerHTML='<p class="detail-loading">Production information is unavailable right now.</p>';$('#detailRecommendations').innerHTML='<p class="detail-loading">Related titles are unavailable right now.</p>';
       console.warn('Rapiflix title profile failed to load.',error);
     }
   }
   document.addEventListener('rapiflix:detail-page',event=>loadTitleExperience(event.detail||{}));
-  $('#detailWatchNow').addEventListener('click',()=>{if(detailMovie){playFilm(detailMovie);return;}const params=new URLSearchParams(location.search);loadTitleExperience({id:params.get('id')||'',type:params.get('type')||'movie',slug:location.pathname.split('/').filter(Boolean).pop()||''});});
-  $('#detailSave').addEventListener('click',()=>{if(detailMovie){toggleSave(detailMovie.id);$('#detailSave').textContent=saved.has(detailMovie.id)?'♥ Saved to my list':'♡ Save to my list';}});
+  $('#detailWatchNow').addEventListener('click',()=>{
+    if(detailMovie){playFilm(detailMovie);return;}
+    const params=new URLSearchParams(location.search);
+    const id=String(params.get('id')||'').replace(/[^0-9]/g,'');
+    if(id){
+      const media=params.get('type')==='tv'?'tv':'movie';
+      const slug=location.pathname.split('/').filter(Boolean).pop()||'Selected title';
+      const title=slug.replace(/-/g,' ').replace(/\b\w/g,character=>character.toUpperCase());
+      playFilm({id:'tmdb-'+(media==='tv'?'tv-':'')+id,tmdbId:Number(id),mediaType:media,kind:'tmdb',title,year:0,desc:'',genres:[],originalLanguage:''});
+      return;
+    }
+    loadTitleExperience({id:params.get('id')||'',type:params.get('type')||'movie',slug:location.pathname.split('/').filter(Boolean).pop()||''});
+  });
+  $('#detailSave').addEventListener('click',()=>{
+    const params=new URLSearchParams(location.search);
+    const rawId=detailMovie?.tmdbId||Number(params.get('id'));
+    if(!Number.isFinite(Number(rawId))||Number(rawId)<=0)return;
+    const id=detailMovie?.id||('tmdb-'+(params.get('type')==='tv'?'tv-':'')+String(rawId));
+    toggleSave(id);
+    $('#detailSave').textContent=saved.has(id)?'♥ Saved to my list':'♡ Save to my list';
+  });
 $('#genreFilter').addEventListener('change',e=>{activeGenre=e.target.value;renderChips();render();});$('#eraFilter').addEventListener('change',e=>{activeEra=e.target.value;render();});$('#genreChips').addEventListener('click',e=>{const b=e.target.closest('[data-genre]');if(!b)return;activeGenre=b.dataset.genre;$('#genreFilter').value=activeGenre;renderChips();render();});$('#sortButton').addEventListener('click',()=>{sortNewest=!sortNewest;$('#sortButton').innerHTML=`↕ <span>${sortNewest?'Newest first':'Featured'}</span>`;render();});const handleMovieGridClick=e=>{
     const saveBtn=e.target.closest('[data-save]');
     if(saveBtn){e.stopPropagation();toggleSave(saveBtn.dataset.save);return;}
