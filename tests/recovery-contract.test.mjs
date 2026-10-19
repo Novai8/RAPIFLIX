@@ -271,7 +271,7 @@ for (const endpoint of [
       params: { path: endpoint.split("/") }
     });
     assert.equal(response.status, 200);
-    assert.match(response.headers.get("content-type") || "", /application\\/json/);
+    assert.ok((response.headers.get("content-type") || "").includes("application/json"));
     assert.equal(response.headers.get("cache-control"), "no-store");
     assert.equal(upstreamUrl.origin, "https://cinepro.example.test");
     assert.equal(upstreamUrl.pathname, "/" + endpoint);
