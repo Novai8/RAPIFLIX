@@ -34,7 +34,7 @@
   function setNav(page,query=''){
     document.documentElement.dataset.page=page;
     const navPage=page==='search'||page==='detail'?'none':page;
-    $('.tabs a').forEach(a=>{if(a.dataset.route===navPage){a.setAttribute('aria-current','page');}else a.removeAttribute('aria-current');});
+    $$('.tabs a').forEach(a=>{if(a.dataset.route===navPage){a.setAttribute('aria-current','page');}else a.removeAttribute('aria-current');});
     positionIndicator();
     const q=String(query||'').trim();
     const cleanQ=q.slice(0,90);
