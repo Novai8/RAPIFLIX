@@ -40,7 +40,7 @@
   }
   async function loadLicensedStreamManifest(){
     try{
-      const response=await fetch(new URL('streams.json',document.baseURI),{cache:'no-store'});
+      const response=await fetch(new URL('/streams.json',location.origin),{cache:'no-store'});
       if(!response.ok)return;
       const data=await response.json();
       licensedStreams=data&&data.movies&&typeof data.movies==='object'?data.movies:{};
@@ -414,7 +414,7 @@
     }));
   }
   async function playFilm(m){
-    await licensedStreamsReady;
+    // Playback must never wait for an optional manifest request. The default movie and TV players do not need it.
     if(!m)return;
     // Keep VidCore as the default movie player and offer CinePro as an additional source.
     if(m.kind==='tmdb'&&m.mediaType!=='tv'&&!m.forceCineProPlayback){
@@ -922,12 +922,12 @@
       $('#detailWatchNow').disabled=false;
       $('#detailWatchNow').innerHTML='▶ <span>Watch now</span>';
       const extraEndpoints=[base+'/credits',base+'/recommendations',base+'/similar',base+'/videos',base+'/watch/providers'];
-      const extras=await Promise.all(extraEndpoints.map(path=>Promise.race([
+      // Start optional profile requests in parallel, but never hold the visible title page hostage to them.
+      const extrasPromise=Promise.all(extraEndpoints.map(path=>Promise.race([
         tmdbRequest(path,{language:'en-US'}).then(async response=>({ok:response.ok,data:await response.json()})),
         new Promise(resolve=>setTimeout(()=>resolve({ok:false,data:{}}),7000))
       ]).catch(()=>({ok:false,data:{}}))));
       if(activeDetailRequest!==requestKey)return;
-      const responses=[baseResponse,...extras];
       document.title=title+' | Full Details | Rapiflix';
       const meta=document.querySelector('meta[name="description"]');if(meta)meta.content='Explore '+title+' on Rapiflix: synopsis, cast, production, ratings, budget, related titles and viewing options.';
       $('#detailTitle').textContent=title||titleFallback;
@@ -949,6 +949,9 @@
       $('#detailFacts').innerHTML=facts.map(([label,value])=>'<div class="detail-fact"><span>'+escapeHtml(label)+'</span><strong>'+escapeHtml(String(value))+'</strong></div>').join('');
       $('#detailWatchNow').disabled=false;$('#detailWatchNow').innerHTML='▶ <span>Watch now</span>';
       $('#detailSave').textContent=saved.has(detailMovie.id)?'♥ Saved to my list':'♡ Save to my list';
+      const extras=await extrasPromise;
+      if(activeDetailRequest!==requestKey)return;
+      const responses=[baseResponse,...extras];
       const videos=(responses[4].data.results||[]).filter(v=>v&&v.site==='YouTube'&&v.key&&/^[A-Za-z0-9_-]{6,20}$/.test(v.key));
       const trailer=videos.find(v=>v.type==='Trailer'&&v.official===true)||videos.find(v=>v.type==='Trailer')||videos.find(v=>v.type==='Teaser');
       const trailerLink=$('#detailTrailer');if(trailer){trailerLink.href='https://www.youtube.com/watch?v='+encodeURIComponent(trailer.key);trailerLink.hidden=false;}
