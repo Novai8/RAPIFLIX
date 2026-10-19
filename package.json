@@ -1,0 +1,12 @@
+{
+  "name": "rapiflix",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/recovery-contract.test.mjs tests/frontend-unit.test.mjs",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  }
+}

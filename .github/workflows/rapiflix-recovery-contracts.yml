@@ -1,0 +1,41 @@
+name: Rapiflix checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - main
+      - 'arena/**'
+      - 'fix/**'
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install test dependencies
+        run: npm ci
+      - name: Install Chromium for browser checks
+        run: npx playwright install --with-deps chromium
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check routes.js
+          node --check shared.js
+          node --check 'functions/api/tmdb/[[path]].js'
+          node --check 'functions/api/cinepro/[[path]].js'
+          node --check functions/api/health.js
+      - name: Run API and front-end unit contracts
+        run: npm test
+      - name: Run Playwright browser contracts
+        run: npm run test:e2e
