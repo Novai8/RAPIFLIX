@@ -312,6 +312,7 @@ test("front-end title, playback, and poster contracts remain wired", async () =>
   assert.match(html, /id="detailMoneyChart"/);
   assert.match(html, /id="detailSeasonChips"/);
   assert.match(html, /id="detailEpisodes"/);
+  assert.match(html, /id="heroArt"/);
   assert.match(app, /location\.assign\('\/details\//);
   assert.match(app, /\$\('#modalPlay'\)\.addEventListener\('click'/);
   assert.match(app, /\$\('#detailWatchNow'\)\.addEventListener\('click'/);
@@ -322,6 +323,7 @@ test("front-end title, playback, and poster contracts remain wired", async () =>
   assert.ok(JSON.parse(pagesRoutes).include.includes("/api/health"));
   assert.match(app, /withTimeout\(tmdbRequest\('tv\//);
   assert.match(app, /vidcore\.org\/embed\/movie\//);
+  assert.match(app, /function syncHeroPoster\(movie\)/);
   assert.match(app, /vidcore\.org\/embed\/tv\//);
   assert.match(app, /renderDetailMoney\(detail\)/);
   assert.match(app, /initializeDetailEpisodes\(detail,requestKey\)/);
@@ -339,4 +341,7 @@ test("front-end title, playback, and poster contracts remain wired", async () =>
   assert.match(css, /\.detail-money-row\{/);
   assert.match(css, /\.detail-season-chip\{/);
   assert.match(css, /\.detail-episode\{/);
+  assert.match(css, /\.hero-poster::before/);
+  assert.match(css, /\.movie-card \.poster-wrap::before/);
+  assert.match(css, /html\[data-page="trending"\] #movieGrid/);
 });
