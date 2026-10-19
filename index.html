@@ -99,7 +99,7 @@
   if (tagline) tagline.textContent = chosen.tagline;
   if (status) status.textContent = chosen.messages[0];
   const started = performance.now();
-  const duration = reducedMotion ? 650 : 2450;
+  const duration = reducedMotion ? 650 : 6000;
   let soundEnabled = true, audioContext = null, finished = false, lastMessage = -1, soundPlayed = false;
   const soundPlans = {
     universe:[110,165,220,330], portal:[73,110,220,440], logo:[146,220,294,440],
