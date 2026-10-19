@@ -40,8 +40,7 @@
     <div class="loader-progress-row"><span id="loaderStatus">Tuning the cinematic universe</span><span id="progressNumber">00%</span></div>
     <div class="progress-track" role="progressbar" aria-label="Loading Rapiflix" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="loaderProgress"><span id="progressFill"></span><i></i></div>
     <div class="loader-foot"><span class="loader-live-dot"></span><span>YOUR NEXT STORY AWAITS</span><span id="loaderCounter">00:04</span></div>
-    <button type="button" class="portal-sound-toggle" id="portalSoundToggle" aria-pressed="true" aria-label="Disable cinematic loading sound"><span class="sound-icon" aria-hidden="true">♫</span><span id="portalSoundLabel">Cinematic sound enabled</span><span class="sound-toggle-state">ON</span></button>
-    <p class="portal-sound-note">Sound may start after your first tap.</p>
+    <p class="portal-sound-note" aria-live="polite">Cinematic sound is enabled. Your browser may start audio after your first interaction.</p>
   </div>
 </div>
 <header class="site-header">
@@ -92,9 +91,6 @@
   const progress = document.getElementById('loaderProgress');
   const status = document.getElementById('loaderStatus');
   const counter = document.getElementById('loaderCounter');
-  const soundButton = document.getElementById('portalSoundToggle');
-  const soundLabel = document.getElementById('portalSoundLabel');
-  const soundState = soundButton && soundButton.querySelector('.sound-toggle-state');
   const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (tagline) tagline.textContent = chosen.tagline;
   if (status) status.textContent = chosen.messages[0];
@@ -138,13 +134,6 @@
     noise.connect(filter); filter.connect(gain); gain.connect(master);
     noise.start(now); noise.stop(now + 0.74);
   }
-  function syncSoundToggle() {
-    if (!soundButton) return;
-    soundButton.setAttribute('aria-pressed', String(soundEnabled));
-    soundButton.setAttribute('aria-label', soundEnabled ? 'Disable cinematic loading sound' : 'Enable cinematic loading sound');
-    if (soundLabel) soundLabel.textContent = soundEnabled ? 'Cinematic sound enabled' : 'Enable cinematic sound';
-    if (soundState) soundState.textContent = soundEnabled ? 'ON' : 'OFF';
-  }
   async function startSoundFromGesture() {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -152,13 +141,11 @@
       if (!audioContext) audioContext = new AudioCtx();
       if (audioContext.state === 'suspended') await audioContext.resume();
       soundEnabled = true;
-      syncSoundToggle();
       if (!soundPlayed) { playSound(); soundPlayed = true; }
     } catch (_) {
-      if (soundLabel) soundLabel.textContent = 'Tap to enable cinematic sound';
+      // Keep sound enabled; the browser may require a user gesture before audio can play.
     }
   }
-  syncSoundToggle();
   // Try autoplay where permitted; browsers that block it resume audio on the first interaction.
   startSoundFromGesture();
   const resumeOnFirstInteraction = () => {
@@ -168,15 +155,6 @@
   };
   window.addEventListener('pointerdown', resumeOnFirstInteraction, {once:true});
   window.addEventListener('keydown', resumeOnFirstInteraction, {once:true});
-  if (soundButton) soundButton.addEventListener('click', async () => {
-    if (!soundEnabled || !audioContext || audioContext.state !== 'running') {
-      await startSoundFromGesture();
-    } else {
-      soundEnabled = false;
-      syncSoundToggle();
-      if (audioContext && audioContext.state === 'running') audioContext.suspend();
-    }
-  });
   function tick(now) {
     const elapsed = now - started;
     const ratio = Math.min(1, elapsed / duration);
