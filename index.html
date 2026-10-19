@@ -19,7 +19,7 @@
 <title>Rapiflix: Discover Movies, TV Series & Anime</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Unbounded:wght@500;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20261020-recovery3">
+<link rel="stylesheet" href="styles.css?v=20261020-prototype-align1">
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div><div class="mouse-glow" aria-hidden="true"></div>
@@ -55,20 +55,50 @@
     <div class="detail-hero-content">
       <div class="detail-poster-wrap"><img id="detailPoster" alt="" src="" loading="eager"></div>
       <div class="detail-intro">
-        <p class="detail-eyebrow" id="detailEyebrow">RAPIFLIX ORIGINAL PROFILE</p>
+        <p class="detail-eyebrow" id="detailEyebrow">RAPIFLIX TITLE PROFILE</p>
         <h1 id="detailTitle">Loading title…</h1>
         <div class="detail-meta" id="detailMeta"></div>
         <p class="detail-overview" id="detailOverview">Gathering the story, cast, production details and viewing information.</p>
         <div class="detail-actions"><button class="detail-watch-button" id="detailWatchNow" type="button">▶ <span>Watch now</span></button><button class="detail-save-button" id="detailSave" type="button">♡ Save to my list</button><a class="detail-trailer-button" id="detailTrailer" href="#" target="_blank" rel="noreferrer" hidden>▷ Watch trailer</a></div>
-        <div class="detail-facts" id="detailFacts"></div>
       </div>
     </div>
   </div>
   <div class="detail-content">
-    <section class="detail-section"><div class="detail-section-heading"><div><p class="detail-label">THE PEOPLE</p><h2>Cast & performances</h2></div><span id="detailCastCount"></span></div><div class="detail-cast-grid" id="detailCast"><p class="detail-loading">Finding the cast…</p></div></section>
-    <section class="detail-section detail-split-section"><div><p class="detail-label">BEHIND THE FRAME</p><h2>Production notes</h2><div class="detail-production-grid" id="detailProduction"><p class="detail-loading">Loading production details…</p></div></div><div><p class="detail-label">THE CREATIVE TEAM</p><h2>Key crew</h2><div class="detail-crew-list" id="detailCrew"><p class="detail-loading">Finding key crew…</p></div></div></section>
-    <section class="detail-section"><div class="detail-section-heading"><div><p class="detail-label">MORE TO EXPLORE</p><h2>You might also like</h2></div><span>Selected for your next watch</span></div><div class="detail-related-grid" id="detailRecommendations"><p class="detail-loading">Finding related titles…</p></div></section>
-    <p class="detail-attribution">Title metadata, cast and artwork provided by TMDB. Rapiflix is not endorsed or certified by TMDB. Budgets, ratings and release information may be unavailable or unreported.</p>
+    <section class="detail-section detail-player-section" id="detailPlayerSection">
+      <div class="detail-section-heading"><div><p class="detail-label">NOW SHOWING</p><h2>Watch</h2></div><span id="detailPlayerProvider">VidCore player</span></div>
+      <div class="detail-player-shell" id="detailPlayerShell">
+        <div class="detail-player-placeholder" id="detailPlayerPlaceholder"><span class="detail-player-mark">▶</span><strong>Your title is ready when you are.</strong><p>Choose Watch now to load the existing Rapiflix player here.</p></div>
+        <div class="detail-player-mount" id="detailPlayerMount"></div>
+      </div>
+      <p class="detail-player-note" id="detailPlayerNote">Playback availability depends on the selected title and third-party source.</p>
+    </section>
+    <section class="detail-section">
+      <div class="detail-section-heading"><div><p class="detail-label">AT A GLANCE</p><h2>Details</h2></div><span>Reported title information</span></div>
+      <div class="detail-facts" id="detailFacts"><p class="detail-loading">Loading title facts…</p></div>
+    </section>
+    <section class="detail-section" id="detailBudgetSection">
+      <div class="detail-section-heading"><div><p class="detail-label">THE NUMBERS</p><h2>Budget and box office</h2></div><span>USD · TMDB reported figures</span></div>
+      <div class="detail-money-chart" id="detailMoneyChart"><p class="detail-loading">Checking reported financial figures…</p></div>
+      <p class="detail-attribution">Financial figures are shown only when reported by TMDB. They are not adjusted for inflation and box office is not the same as profit.</p>
+    </section>
+    <section class="detail-section">
+      <div class="detail-section-heading"><div><p class="detail-label">THE PEOPLE</p><h2>Cast & performances</h2></div><span id="detailCastCount"></span></div>
+      <div class="detail-cast-grid" id="detailCast"><p class="detail-loading">Finding the cast…</p></div>
+    </section>
+    <section class="detail-section" id="detailEpisodesSection" hidden>
+      <div class="detail-section-heading"><div><p class="detail-label">CONTINUE WATCHING</p><h2>Seasons and episodes</h2></div><span id="detailEpisodeCount"></span></div>
+      <div class="detail-season-chips" id="detailSeasonChips" aria-label="Choose a season"></div>
+      <div class="detail-episodes-list" id="detailEpisodes"><p class="detail-loading">Loading episode information…</p></div>
+    </section>
+    <section class="detail-section detail-split-section">
+      <div><p class="detail-label">BEHIND THE FRAME</p><h2>Production notes</h2><div class="detail-production-grid" id="detailProduction"><p class="detail-loading">Loading production details…</p></div></div>
+      <div><p class="detail-label">THE CREATIVE TEAM</p><h2>Key crew</h2><div class="detail-crew-list" id="detailCrew"><p class="detail-loading">Finding key crew…</p></div></div>
+    </section>
+    <section class="detail-section">
+      <div class="detail-section-heading"><div><p class="detail-label">MORE TO EXPLORE</p><h2>You might also like</h2></div><span>Related titles from the catalogue</span></div>
+      <div class="detail-related-grid" id="detailRecommendations"><p class="detail-loading">Finding related titles…</p></div>
+    </section>
+    <p class="detail-attribution">Title metadata, cast and artwork provided by TMDB. Rapiflix is not endorsed or certified by TMDB. Missing budget, box office, rating or release information is not estimated.</p>
   </div>
 </section>
 <main id="appMain">
@@ -204,5 +234,5 @@
   requestAnimationFrame(tick);
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js" crossorigin="anonymous"></script><script src="app.js?v=20261020-recovery3"></script><script src="routes.js?v=20261020-recovery3"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js" crossorigin="anonymous"></script><script src="app.js?v=20261020-prototype-align1"></script><script src="routes.js?v=20261020-prototype-align1"></script>
 </body></html>
