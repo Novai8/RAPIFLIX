@@ -1259,3 +1259,5 @@ html[data-page=title] .modal-body .language-panel{margin:16px 0;padding:16px}
 @media(prefers-reduced-motion:reduce){
  .detail-money-track i{transition:none}
 }
+
+.detail-season-chip{font:600 12px/1.3 "DM Sans",system-ui,sans-serif}
