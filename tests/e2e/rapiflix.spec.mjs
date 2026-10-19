@@ -66,8 +66,6 @@ test('direct movie and TV links load, unknown ids show a not-found state, and Ba
   await prepare(page, 1440);
   const movieHref = await page.locator('#movieGrid .card-title-link').first().getAttribute('href');
   await page.goto(movieHref);
-  const routeDebug = await page.evaluate(() => ({ href: location.href, pathname: location.pathname, page: document.documentElement.dataset.page, detailHidden: document.querySelector('#detailPage')?.hidden, routeScript: [...document.scripts].map(script => script.src).filter(Boolean) }));
-  if (routeDebug.detailHidden) throw new Error('detail route debug: ' + JSON.stringify(routeDebug));
   await expect(page.locator('#detailPage')).toBeVisible();
   await expect(page.locator('#detailTitle')).toContainText('WALL·E');
   await page.getByRole('button', { name: /watch now/i }).click();
