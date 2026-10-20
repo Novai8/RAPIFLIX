@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rapiflix Player</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #05070d; }
+    body { display: grid; place-items: center; padding: 24px; font-family: Arial, sans-serif; }
+    .rapiflix-player { position: relative; width: min(100%, 1200px); aspect-ratio: 16 / 9; overflow: hidden; background: #05070d; border-radius: 16px; isolation: isolate; }
+    .rapiflix-player iframe { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; border: 0; background: #05070d; }
+    .rapiflix-loader { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #fff; background: radial-gradient(circle at center, rgba(255,90,31,.16), transparent 42%), #05070d; opacity: 1; visibility: visible; pointer-events: all; transition: opacity .7s ease, visibility .7s ease; }
+    .rapiflix-loader.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-spinner { width: 58px; height: 58px; border: 3px solid rgba(255,255,255,.16); border-top-color: #ff5a1f; border-right-color: #c7ff43; border-radius: 50%; animation: rapiflix-spin .9s linear infinite; box-shadow: 0 0 28px rgba(255,90,31,.32); }
+    .loader-label { font: 700 clamp(18px, 3vw, 28px)/1.2 Arial, sans-serif; letter-spacing: .12em; text-align: center; }
+    @keyframes rapiflix-spin { to { transform: rotate(360deg); } }
+    @media (max-width: 600px) { body { padding: 10px; } .rapiflix-player { border-radius: 10px; } }
+    @media (prefers-reduced-motion: reduce) { .loader-spinner { animation-duration: 2.5s; } }
+  </style>
+</head>
+<body>
+  <main class="rapiflix-player" aria-label="Rapiflix movie player">
+    <iframe id="vidcorePlayer" src="https://vidcore.org/embed/movie/533535" title="Rapiflix movie player" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="eager"></iframe>
+    <div id="rapiflixLoader" class="rapiflix-loader" role="status" aria-live="polite">
+      <div class="loader-spinner" aria-hidden="true"></div>
+      <div class="loader-label">RAPIFLIX — Loading Stream...</div>
+    </div>
+  </main>
+  <script>
+    (() => {
+      const iframe = document.querySelector('#vidcorePlayer');
+      const loader = document.querySelector('#rapiflixLoader');
+      if (!iframe || !loader) return;
+      iframe.addEventListener('load', () => {
+        window.setTimeout(() => {
+          loader.classList.add('is-hidden');
+          window.setTimeout(() => loader.remove(), 750);
+        }, 1500);
+      }, { once: true });
+    })();
+  </script>
+</body>
+</html>
