@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=f=>readFile(path.join(root,f),'utf8');
 const [html,app,routes,css,redirects,streams,tmdb,health]=await Promise.all(['index.html','app.js','routes.js','styles.css','_redirects','streams.json','functions/api/tmdb/[[path]].js','functions/api/health.js'].map(read));
-test('new shell exposes the app mount and loader',()=>{assert.match(html,/id="app"/);assert.match(html,/id="loader"/);assert.match(html,/pointer-ring/);assert.match(html,/styles\.css\?v=20261020-cinematic-v4/);assert.match(html,/data-build="css-fix-v4"/)});
+test('new shell exposes the app mount and loader',()=>{assert.match(html,/id="app"/);assert.match(html,/id="loader"/);assert.match(html,/pointer-ring/);assert.match(html,/styles\.css\?v=20261020-cinematic-v5/);assert.match(html,/data-build="vidcore-catalog-v5"/)});
 test('frontend has dedicated title and watch routes',()=>{assert.match(app,/p\.startsWith\('\/title\/'\)/);assert.match(app,/p\.startsWith\('\/watch\/'\)/);assert.match(app,/function titleView/);assert.match(app,/function watchView/);assert.match(app,/href="\/watch\/\$\{m\.id\}\?type=\$\{m\.type\}"/)});
 test('movie catalogue discovers the 1995–2026 range with pagination',()=>{assert.match(app,/discover\/movie\?primary_release_date\.gte=1995-01-01/);assert.match(app,/primary_release_date\.lte=2026-12-31/);assert.match(app,/data-load-more/);assert.match(app,/loadMovieRange/)});
 test('title details include finance and cast',()=>{assert.match(app,/budget/);assert.match(app,/boxOffice/);assert.match(app,/THE CAST/);assert.match(app,/cast-list/)});
