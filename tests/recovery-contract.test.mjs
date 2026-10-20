@@ -27,3 +27,6 @@ test('responsive motion system is present',()=>{assert.match(css,/scene-image-a/
 test('SPA rewrites include title and watch routes',()=>{assert.match(redirects,/\/title\/\* \/ 200/);assert.match(redirects,/\/watch\/\* \/ 200/)});
 test('TMDB backend stays allowlisted',()=>{assert.match(tmdb,/const ALLOWED/);assert.match(tmdb,/Only GET requests are supported/);assert.match(tmdb,/api_key/)});
 test('health endpoint remains JSON',()=>{assert.match(health,/service: "rapiflix-api"/);assert.match(health,/Content-Type/)});
+
+test('series catalogue uses TV metadata and offers season episode navigation',()=>{assert.match(app,/trending\/tv\/week/);assert.match(app,/state\.seriesCatalog/);assert.match(app,/season-browser/);assert.match(app,/tv\/\$\{m\.id\}\/season\/\$\{season\}/);assert.match(app,/data-watch-episode/);assert.match(app,/season=\$\{button\.dataset\.watchSeason\}/)});
+test('library uses a responsive poster grid while home rails remain horizontal',()=>{assert.match(css,/\.listing-page \.movie-grid\{display:grid/);assert.match(css,/@media\(max-width:620px\)/);assert.match(css,/\.category-rail \.movie-grid\{display:flex/);assert.match(css,/\.scene-image\{animation:none!important/)});
