@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=f=>readFile(path.join(root,f),'utf8');
 const [html,app,routes,css,redirects,streams,tmdb,health]=await Promise.all(['index.html','app.js','routes.js','styles.css','_redirects','streams.json','functions/api/tmdb/[[path]].js','functions/api/health.js'].map(read));
-test('new shell exposes the app mount and loader',()=>{assert.match(html,/id="app"/);assert.match(html,/id="loader"/);assert.match(html,/pointer-ring/);assert.match(html,/styles\.css\?v=20261020-cinematic/)});
+test('new shell exposes the app mount and loader',()=>{assert.match(html,/id="app"/);assert.match(html,/id="loader"/);assert.match(html,/pointer-ring/);assert.match(html,/styles\.css\?v=20261020-cinematic-v3/);assert.match(html,/data-build="1c4a808"/)});
 test('frontend has dedicated title and watch routes',()=>{assert.match(app,/p\.startsWith\('\/title\/'\)/);assert.match(app,/p\.startsWith\('\/watch\/'\)/);assert.match(app,/function titleView/);assert.match(app,/function watchView/);assert.match(app,/href="\/watch\/\$\{m\.id\}"/)});
 test('title details include finance and cast',()=>{assert.match(app,/budget/);assert.match(app,/boxOffice/);assert.match(app,/THE CAST/);assert.match(app,/cast-list/)});
 test('watch room never treats TMDB metadata as playback',()=>{assert.match(app,/OFFICIAL VIEWING ONLY/);assert.match(app,/authorized in-site stream configured/);assert.match(streams,/"movies": \{\}/);assert.doesNotMatch(streams,/vidcore/i)});
