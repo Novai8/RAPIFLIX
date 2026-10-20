@@ -7,9 +7,9 @@ Rapiflix is a cinematic movie-discovery website for films, series and anime. Thi
 - Replaced the previous modal-first catalogue with a new animated shell.
 - Added animated poster/backdrop gradients, ambient image movement, a custom pointer, and a detailed loading sequence.
 - Added URL-addressable title rooms at `/title/:id` with overview, rating, runtime, budget, box office, cast, trailer link and related viewing actions.
-- Added dedicated watch rooms at `/watch/:id` with a responsive video/iframe stage and official viewing fallback when no authorized source is configured.
+- Added dedicated watch rooms at `/watch/:id` with a responsive VidCore iframe stage for authorized movie and TV playback.
 - Added keyboard-friendly search, theme switching, saved titles, responsive navigation and mobile layouts.
-- Kept the Cloudflare TMDB/CinePro proxy contracts and made the default `streams.json` empty so metadata is never mistaken for a lawful stream.
+- Kept the Cloudflare TMDB/CinePro proxy contracts and restored the authorized VidCore provider templates in `streams.json`.
 
 ## Routes
 
@@ -33,6 +33,8 @@ For Cloudflare Pages Functions locally, use Wrangler with a `.dev.vars` file con
 
 ## Authorized playback
 
-Add only sources you are authorized to embed or stream to `streams.json`. Supported source types are direct video URLs, HLS (`type: "hls"`) and authorized iframe embeds (`mode: "iframe"`). If no source exists, Rapiflix shows an official TMDB watch-options link instead of pretending a catalogue title is a free stream.
+Playback uses the authorized VidCore iframe templates in `streams.json` for movies and TV episodes. Additional sources may be added only when you are authorized to embed or stream them. Supported source types are direct video URLs, HLS (`type: "hls"`) and authorized iframe embeds (`mode: "iframe"`). Rapiflix does not inject its own advertising, trigger popup windows, or open a second tab when the user presses Play.
+
+Because VidCore is cross-origin, Rapiflix cannot inspect, remove, or guarantee the absence of advertising or popup behavior generated inside VidCore's own iframe. That provider-controlled behavior must be disabled or covered by the VidCore authorization/configuration itself.
 
 TMDB provides metadata and watch-provider information; it does not grant movie playback rights. Rapiflix does not insert advertising into its own interface or player.

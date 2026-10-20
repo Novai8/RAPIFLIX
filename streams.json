@@ -1,4 +1,16 @@
 {
-  "_notice": "Only add sources you are authorized to embed or stream. Rapiflix never treats TMDB metadata as a movie file.",
+  "_notice": "VidCore playback is enabled under the site operator's authorization. Rapiflix does not inject advertising or open extra windows; any content rendered inside the cross-origin provider iframe is controlled by that provider.",
+  "embedProviders": [
+    {
+      "provider": "VidCore",
+      "label": "VidCore Player",
+      "authorized": true,
+      "mode": "iframe",
+      "movieUrlTemplate": "https://vidcore.org/embed/movie/{tmdb_id}",
+      "tvUrlTemplate": "https://vidcore.org/embed/tv/{tmdb_id}/{season}/{episode}",
+      "defaultSeason": 1,
+      "defaultEpisode": 1
+    }
+  ],
   "movies": {}
 }
