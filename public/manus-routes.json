@@ -1,0 +1,1 @@
+{"routes":[{"path":"/","title":"Home"},{"path":"/movies","title":"Movies"},{"path":"/series","title":"Series"},{"path":"/anime","title":"Anime"},{"path":"/search?q=","title":"Search"},{"path":"/title/:id","title":"Title"},{"path":"/watch/:id","title":"Watch"}]}

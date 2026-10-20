@@ -2,5 +2,6 @@
 /series / 200
 /anime / 200
 /search / 200
-/title/* / 302
-/details/* / 302
+/title/* / 200
+/watch/* / 200
+/* / 200
