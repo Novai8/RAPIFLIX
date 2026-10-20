@@ -5,7 +5,7 @@
   const status = $('#loaderStatus');
   const fill = $('#loaderFill');
   const percent = $('#loaderPercent');
-  const messages = ['Building your front row','Painting the night in gradients','Loading stories worth staying for'];
+  const messages = ['Tuning the projector','Painting the night in gradients','Locking the frame'];
   let start = performance.now();
   function tick(now){
     if(!loader || loader.classList.contains('done')) return;
@@ -23,5 +23,10 @@
   document.addEventListener('pointerover',e=>{if(e.target.closest('a,button,.movie-card,.poster-tile')) ring?.classList.add('active')});
   document.addEventListener('pointerout',e=>{if(e.target.closest('a,button,.movie-card,.poster-tile')) ring?.classList.remove('active');const card=e.target.closest('.movie-card,.hero-feature');if(card){card.style.setProperty('--tilt-x','0deg');card.style.setProperty('--tilt-y','0deg');card.style.setProperty('--lift-x','0px');card.style.setProperty('--lift-y','0px')}});
   document.addEventListener('keydown',e=>{if(e.key==='/' && !/input|textarea/i.test(document.activeElement.tagName)){e.preventDefault();$('#searchInput')?.focus()}});
+  const palettes=['lime','coral','cyan','violet'];
+  const paletteButton=$('#paletteToggle');
+  const savedPalette=localStorage.getItem('rapiflix-palette')||'lime';
+  document.documentElement.dataset.palette=palettes.includes(savedPalette)?savedPalette:'lime';
+  paletteButton?.addEventListener('click',()=>{const next=palettes[(palettes.indexOf(document.documentElement.dataset.palette)+1)%palettes.length];document.documentElement.dataset.palette=next;localStorage.setItem('rapiflix-palette',next);paletteButton.animate([{transform:'rotate(0) scale(1)'},{transform:'rotate(180deg) scale(1.18)'},{transform:'rotate(360deg) scale(1)'}],{duration:480,easing:'cubic-bezier(.2,.8,.2,1)'});});
   window.RapiflixUI={reduce,$};
 })();
