@@ -5,6 +5,8 @@
   const status = $('#loaderStatus');
   const fill = $('#loaderFill');
   const percent = $('#loaderPercent');
+  const savedTheme=localStorage.getItem('rapiflix-theme')||'dark';
+  document.documentElement.dataset.theme=savedTheme==='light'?'light':'dark';
   const messages = ['Tuning the projector','Painting the night in gradients','Locking the frame'];
   let start = performance.now();
   function tick(now){
