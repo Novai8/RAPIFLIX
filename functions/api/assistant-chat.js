@@ -8,8 +8,12 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
 });
 
 export async function onRequest({ request, env }) {
+  // Safe health check confirms the function and binding without exposing secrets.
+  if (request.method === "GET") {
+    return json({ status: "ok", endpoint: "assistant-chat", aiBindingAvailable: Boolean(env.AI && typeof env.AI.run === "function") });
+  }
   if (request.method !== "POST") {
-    return json({ error: "Only POST requests are supported." }, 405);
+    return json({ error: "Only GET and POST requests are supported." }, 405);
   }
 
   const origin = request.headers.get("Origin");
