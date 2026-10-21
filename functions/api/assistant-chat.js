@@ -65,7 +65,7 @@ export async function onRequest({ request, env }) {
     return json({ error: "The latest message must be from the user." }, 400);
   }
 
-  const catalogue = Array.isArray(body.catalogue) ? body.catalogue.slice(0, 24).filter((item) =>
+  const catalogue = Array.isArray(body.catalogue) ? body.catalogue.slice(0, 100).filter((item) =>
     item && typeof item.title === "string" && item.title.length <= 160 &&
     (item.type === "movie" || item.type === "tv")
   ).map((item) => ({
@@ -73,7 +73,7 @@ export async function onRequest({ request, env }) {
     type: item.type,
     year: typeof item.year === "string" ? item.year.slice(0, 4) : "",
     rating: Number.isFinite(Number(item.rating)) ? Number(item.rating) : null,
-    overview: typeof item.overview === "string" ? item.overview.slice(0, 220) : ""
+    overview: typeof item.overview === "string" ? item.overview.slice(0, 140) : ""
   })) : [];
 
   const systemText = [
