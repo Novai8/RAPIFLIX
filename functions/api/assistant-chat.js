@@ -65,6 +65,36 @@ export async function onRequest({ request, env }) {
     return json({ error: "The latest message must be from the user." }, 400);
   }
 
+  // Server-side TMDB discovery means recommendations are not limited to pages preloaded in the browser.
+  const discovered = [];
+  const query = body.catalogueQuery && typeof body.catalogueQuery === "object" ? body.catalogueQuery : {};
+  const genreIds = { movie: { action:28, adventure:12, animation:16, comedy:35, crime:80, documentary:99, drama:18, family:10751, fantasy:14, history:36, horror:27, music:10402, mystery:9648, romance:10749, science:878, "sci-fi":878, thriller:53, war:10752, western:37 }, tv: { action:10759, adventure:10759, animation:16, comedy:35, crime:80, documentary:99, drama:18, family:10751, fantasy:10765, history:36, horror:9648, mystery:9648, romance:10749, science:10765, "sci-fi":10765, thriller:9648, war:10768, western:37 } };
+  const safeQuery = (value, max=80) => typeof value === "string" ? value.trim().slice(0,max) : "";
+  async function tmdb(path, params={}) { if (!env.TMDB_API_KEY) return null; const url = new URL("https://api.themoviedb.org/3/" + path); for (const [key,value] of Object.entries(params)) if (value !== undefined && value !== null && value !== "") url.searchParams.set(key,String(value)); url.searchParams.set("api_key",env.TMDB_API_KEY); const response = await fetch(url.toString(),{headers:{Accept:"application/json"},cf:{cacheTtl:240,cacheEverything:true}}); if(!response.ok)return null; return response.json().catch(()=>null); }
+  const types = query.type === "tv" ? ["tv"] : query.type === "movie" ? ["movie"] : ["movie","tv"];
+  const genres = Array.isArray(query.genres) ? query.genres.map(g=>safeQuery(g,30).toLowerCase()).filter(Boolean).slice(0,3) : [];
+  const language = /^(en|hi|ko|ja|fr|es|de|it|zh|ar)$/i.test(safeQuery(query.language,5)) ? query.language : "";
+  const year = /^(19\d{2}|20\d{2})$/.test(safeQuery(query.year,4)) ? query.year : "";
+  const maxRuntime = Number(query.maxRuntime)>=45 && Number(query.maxRuntime)<=240 ? Number(query.maxRuntime) : 0;
+  const pageStart = Math.max(1,Math.min(496,Number(query.pageStart)||1));
+  try {
+    if (query.franchise === "marvel") {
+      const pages = await Promise.all(Array.from({length:5},(_,i)=>tmdb("discover/movie",{page:pageStart+i,include_adult:"false",with_companies:420,sort_by:query.latest?"primary_release_date.desc":"popularity.desc","vote_count.gte":10,"primary_release_date.lte":new Date().toISOString().slice(0,10)})));
+      for (const data of pages) for (const item of data?.results||[]) discovered.push({title:item.title||item.name,type:"movie",year:String(item.release_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)});
+    } else if (safeQuery(query.topic)) {
+      const topic = safeQuery(query.topic).toLowerCase();
+      const terms = topic === "cars" ? ["car","racing","automobile"] : [topic,topic+" film",topic+" movie"];
+      const keywordSearches = await Promise.all(terms.map(term=>tmdb("search/keyword",{query:term,page:1})));
+      const keywordIds = [...new Set(keywordSearches.flatMap(data=>(data?.results||[]).slice(0,2).map(item=>Number(item.id)).filter(Number.isFinite)))].slice(0,4);
+      const batches = await Promise.all(keywordIds.map(async id=>{const pages=await Promise.all(Array.from({length:3},(_,i)=>tmdb("discover/movie",{page:pageStart+i,include_adult:"false",with_keywords:id,sort_by:"popularity.desc","vote_count.gte":10})));return pages.flatMap(data=>(data?.results||[]).map(item=>({title:item.title||item.name,type:"movie",year:String(item.release_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)})));}));
+      discovered.push(...batches.flat());
+    } else if (safeQuery(query.title)) {
+      const search = await tmdb("search/multi",{query:safeQuery(query.title),include_adult:"false",page:1}); const match=(search?.results||[]).find(item=>item.media_type==="movie"||item.media_type==="tv");
+      if(match){const type=match.media_type==="tv"?"tv":"movie";const pages=await Promise.all(Array.from({length:5},(_,i)=>tmdb(type+"/"+match.id+"/recommendations",{page:pageStart+i})));for(const data of pages)for(const item of data?.results||[])discovered.push({title:item.title||item.name,type,year:String(item.release_date||item.first_air_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)});}
+    } else {
+      const batches = await Promise.all(types.map(async type=>{const map=genreIds[type];const ids=[...new Set(genres.map(g=>map[g]).filter(Boolean))];const params={include_adult:"false",sort_by:query.latest?(type==="tv"?"first_air_date.desc":"primary_release_date.desc"):safeQuery(query.sort,40)||"popularity.desc","vote_count.gte":query.rating?10:40};if(ids.length)params.with_genres=ids.join(",");if(language)params.with_original_language=language;if(year)params[type==="tv"?"first_air_date_year":"primary_release_year"]=year;if(maxRuntime&&type==="movie")params["with_runtime.lte"]=maxRuntime;if(query.franchise==="marvel"&&type==="movie")params.with_companies=420;const pages=await Promise.all(Array.from({length:5},(_,i)=>tmdb("discover/"+type,{...params,page:pageStart+i})));return pages.flatMap(data=>(data?.results||[]).map(item=>({title:item.title||item.name,type,year:String(item.release_date||item.first_air_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)})));}));discovered.push(...batches.flat());
+    }
+  } catch(error) { console.error("Rapiflix catalogue discovery failed",{errorName:error instanceof Error?error.name:"UnknownError"}); }
   const catalogue = Array.isArray(body.catalogue) ? body.catalogue.slice(0, 100).filter((item) =>
     item && typeof item.title === "string" && item.title.length <= 160 &&
     (item.type === "movie" || item.type === "tv")
@@ -76,10 +106,12 @@ export async function onRequest({ request, env }) {
     overview: typeof item.overview === "string" ? item.overview.slice(0, 140) : ""
   })) : [];
 
+  const mergedCatalogue = [...discovered, ...catalogue].filter((item,index,all)=>item.title && all.findIndex(other=>other.type===item.type && other.title.toLowerCase()===item.title.toLowerCase())===index).slice(0,100);
+
   const systemText = [
     "You are Rapiflix's accurate conversational film and TV guide. Answer the user's actual latest question, not an earlier topic. Do not reuse a previous recommendation list when the subject changes. Never invent movie titles, release dates, ratings, franchise membership, or streaming availability.",
-    catalogue.length
-      ? "The supplied titles are a relevant live-discovery slice from Rapiflix's TMDB-powered movie and TV catalogue, not the entire catalogue in one prompt. For recommendations, use ONLY titles in this verified current slice and never invent extra titles. Explain briefly why they fit and acknowledge when the matches are imperfect. Catalogue slice (" + catalogue.length + " titles): " + JSON.stringify(catalogue)
+    mergedCatalogue.length
+      ? "You have access to a dynamically searched slice of Rapiflix's TMDB-powered movie and TV catalogue. It is not the whole global catalogue in one prompt, but it was searched server-side for this request. Recommend ONLY titles in this verified set and never invent extra titles. Catalogue results (" + mergedCatalogue.length + " titles): " + JSON.stringify(mergedCatalogue)
       : "No verified catalogue shortlist was supplied for this message. You may answer general factual questions, but if the user asks for recommendations or a list of titles, do not name movies from memory; explain that you could not verify a current shortlist. Never present guesses as verified catalogue results or claim a title is available to stream on Rapiflix.",
     "Keep replies concise, natural, and useful. Distinguish Marvel Studios / MCU releases from other films based on actual metadata. Do not claim to play or stream content yourself."
   ].join("\n");
