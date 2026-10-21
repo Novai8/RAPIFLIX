@@ -27,7 +27,7 @@ async function api(path){const r=await fetch("/api/tmdb/"+path);if(!r.ok)throw E
 async function askAI(text,items=[]){
   const next=[...state.chat,{role:"user",content:text}].slice(-12);
   if(next[0]?.role==="assistant")next.shift();
-  const catalogue=(items||[]).slice(0,24).map(x=>({title:x.title,type:x.type,year:x.year,rating:x.rating,overview:String(x.overview||"").slice(0,220)}));
+  const catalogue=(items||[]).slice(0,100).map(x=>({title:x.title,type:x.type,year:x.year,rating:x.rating,overview:String(x.overview||"").slice(0,220)}));
   const response=await fetch("/api/assistant-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:next,catalogue})});
   const contentType=response.headers.get("content-type")||"";
   const data=contentType.includes("application/json")?await response.json().catch(()=>({})): {};
