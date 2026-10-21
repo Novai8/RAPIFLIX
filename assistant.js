@@ -27,8 +27,14 @@ async function api(path){const r=await fetch("/api/tmdb/"+path);if(!r.ok)throw E
 async function askAI(text){
   const next=[...state.chat,{role:"user",content:text}].slice(-12);
   const response=await fetch("/api/assistant-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:next})});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw Error(data.error||"The AI chat service is not configured on this deployment yet.");
+  const contentType=response.headers.get("content-type")||"";
+  const data=contentType.includes("application/json")?await response.json().catch(()=>({})): {};
+  if(!response.ok){
+    if(data.error)throw Error(data.error);
+    if(response.status===404)throw Error("The assistant API route is missing from this deployment (HTTP 404). Cloudflare needs to deploy the latest Pages Functions from main.");
+    if(response.status===503)throw Error("The assistant API is deployed, but its Workers AI binding is unavailable in this environment. Check the AI binding on the Production Pages project and redeploy.");
+    throw Error("The assistant API returned HTTP "+response.status+" without a JSON error. Check the Cloudflare Pages deployment and Function logs.");
+  }
   if(!data.reply)throw Error("The AI guide returned an empty reply. Try again.");
   state.chat=[...next,{role:"assistant",content:data.reply}].slice(-12);
   return data.reply;
