@@ -24,9 +24,11 @@ $("#rfGuideClear").addEventListener("click",()=>{state.prefs=[];state.chat=[];we
 function message(role,text){const el=document.createElement("div");el.className="rf-guide-message "+(role==="user"?"from-user":"from-guide");el.innerHTML='<span class="rf-guide-message-label">'+(role==="user"?"YOU":"RAPIFLIX GUIDE")+'</span><p>'+esc(text)+'</p>';messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el}
 function typing(){const el=document.createElement("div");el.className="rf-guide-message from-guide rf-guide-typing";el.innerHTML='<span class="rf-guide-message-label">RAPIFLIX GUIDE</span><p><i></i><i></i><i></i><span>Scanning the catalogue</span></p>';messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el}
 async function api(path){const r=await fetch("/api/tmdb/"+path);if(!r.ok)throw Error("The catalogue is temporarily unavailable.");return r.json()}
-async function askAI(text){
+async function askAI(text,items=[]){
   const next=[...state.chat,{role:"user",content:text}].slice(-12);
-  const response=await fetch("/api/assistant-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:next})});
+  if(next[0]?.role==="assistant")next.shift();
+  const catalogue=(items||[]).slice(0,8).map(x=>({title:x.title,type:x.type,year:x.year,rating:x.rating,overview:x.overview||""}));
+  const response=await fetch("/api/assistant-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:next,catalogue})});
   const contentType=response.headers.get("content-type")||"";
   const data=contentType.includes("application/json")?await response.json().catch(()=>({})): {};
   if(!response.ok){
@@ -40,7 +42,12 @@ async function askAI(text){
   return data.reply;
 }
 function parse(text){
-const l=text.toLowerCase(),p={type:"both",genres:[],language:"",rating:0,maxRuntime:0,year:"",mood:"",title:"",sort:"popularity.desc"};
+const l=text.toLowerCase(),p={type:"both",genres:[],language:"",rating:0,maxRuntime:0,year:"",mood:"",title:"",sort:"popularity.desc",franchise:"",topic:"",latest:false};
+if(/\b(marvel|mcu|marvel studios)\b/i.test(l)){p.franchise="marvel";p.type="movie"}
+if(/\b(cars?|automobiles?|motorsport|racing|race cars?|formula 1|f1)\b/i.test(l)){p.topic="cars";p.type="movie"}
+const about=text.match(/\b(?:movies?|films?)\s+(?:about|on|featuring|involving|related to)\s+([^,.!?]+)/i);
+if(about&&!p.franchise){const subject=about[1].split(/\b(?:except|excluding|without|but not)\b/i)[0].trim().replace(/^(the|a|an)\s+/i,"");if(subject){p.topic=subject.toLowerCase();p.type="movie"}}
+if(/\b(latest|newest|most recent|recent|upcoming)\b/i.test(l)){p.latest=true;p.sort="primary_release_date.desc"}
 if(/\b(anime|animated)\b/.test(l))p.genres.push("animation");
 Object.keys(labels).forEach(g=>{if(new RegExp("\\b"+g.replace(/[.*+?^$()|[\]\\]/g,"\\$&")+"\\b","i").test(l)&&!p.genres.includes(g))p.genres.push(g)});
 if(/\b(series|tv show|tv series|show|episodes|season)\b/.test(l))p.type="tv";
@@ -56,25 +63,38 @@ if(/\b(sad|emotional|tearjerker|make me cry)\b/.test(l))p.mood="emotional";
 const like=text.match(/\b(?:like|similar to|same vibe as)\s+["“]?([^,.!?]+)["”]?/i);if(like)p.title=like[1].replace(/\b(but|with|and|under|that|which)\b.*$/i,"").trim();
 p.genres=[...new Set(p.genres)].slice(0,3);return p
 }
-function merge(p){const all=state.prefs.concat([p]);const out={...p,genres:[...new Set(all.flatMap(x=>x.genres||[]))].slice(0,3)};["type","language","rating","maxRuntime","year","mood","title","sort"].forEach(k=>{const found=[...all].reverse().find(x=>x[k]&&x[k]!=="both"&&x[k]!==0);if(found)out[k]=found[k]});if(p.type==="both")out.type="both";state.prefs=all.slice(-5);return out}
-function query(type,p){const q=new URLSearchParams({page:"1",include_adult:"false",sort_by:p.sort||"popularity.desc","vote_count.gte":p.rating?"100":"40"});if(p.rating)q.set("vote_average.gte",String(p.rating));const map=type==="tv"?tg:mg;const ids=[...new Set(p.genres.map(g=>map[g]).filter(Boolean))];if(ids.length)q.set("with_genres",ids.join(","));if(p.language)q.set("with_original_language",p.language);if(p.year)q.set(type==="tv"?"first_air_date_year":"primary_release_year",p.year);if(p.maxRuntime&&type==="movie")q.set("with_runtime.lte",String(p.maxRuntime));return "discover/"+type+"?"+q.toString()}
-function norm(x,type){return {id:Number(x.id),type,title:x.title||x.name||"Untitled",year:String(x.release_date||x.first_air_date||"").slice(0,4),rating:Number(x.vote_average||0),poster:x.poster_path||""}}
+function merge(p,text){const followup=/\b(more|another|more like that|similar ones|those|that list|same vibe|keep going)\b/i.test(text);if(!followup||!state.prefs.length){state.prefs=[p];return p}const previous=state.prefs[state.prefs.length-1];const out={...previous,...p,genres:p.genres.length?p.genres:previous.genres,type:p.type==="both"?previous.type:p.type,franchise:p.franchise||previous.franchise,topic:p.topic||previous.topic,latest:p.latest||false};state.prefs=[out];return out}
+function query(type,p){const q=new URLSearchParams({page:"1",include_adult:"false",sort_by:p.sort||"popularity.desc","vote_count.gte":p.rating?"100":"40"});if(p.franchise==="marvel")q.set("with_companies","420");if(p.latest){q.set("sort_by","primary_release_date.desc");q.set("primary_release_date.lte",new Date().toISOString().slice(0,10));}if(p.rating)q.set("vote_average.gte",String(p.rating));const map=type==="tv"?tg:mg;const ids=[...new Set(p.genres.map(g=>map[g]).filter(Boolean))];if(ids.length)q.set("with_genres",ids.join(","));if(p.language)q.set("with_original_language",p.language);if(p.year)q.set(type==="tv"?"first_air_date_year":"primary_release_year",p.year);if(p.maxRuntime&&type==="movie")q.set("with_runtime.lte",String(p.maxRuntime));return "discover/"+type+"?"+q.toString()}
+function norm(x,type){return {id:Number(x.id),type,title:x.title||x.name||"Untitled",year:String(x.release_date||x.first_air_date||"").slice(0,4),rating:Number(x.vote_average||0),poster:x.poster_path||"",overview:String(x.overview||"").slice(0,400)}}
 async function recommend(p){
+if(p.franchise==="marvel"){
+  try{const d=await api("discover/movie?"+new URLSearchParams({page:"1",include_adult:"false",with_companies:"420",sort_by:p.latest?"primary_release_date.desc":"popularity.desc","vote_count.gte":"10","primary_release_date.lte":new Date().toISOString().slice(0,10)}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster).slice(0,6)}catch(_){return []}
+}
+if(p.topic){
+  const terms=p.topic==="cars"?["car","racing","automobile","street racing","race car"]:[p.topic,p.topic+" film",p.topic+" movie"];
+  const found=await Promise.all(terms.map(async term=>{try{const r=await api("search/keyword?query="+encodeURIComponent(term)+"&page=1");return (r.results||[]).slice(0,2).map(x=>x.id).filter(Boolean)}catch(_){return []}}));
+  const ids=[...new Set(found.flat())].slice(0,7);
+  const batches=await Promise.all(ids.map(async id=>{try{const d=await api("discover/movie?"+new URLSearchParams({page:"1",include_adult:"false",with_keywords:String(id),sort_by:"popularity.desc","vote_count.gte":"10"}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster&&(p.topic!=="cars"||!/\bfast\b.*\b(furious|five|x|6|7|8|9)\b|\bfurious\b|hobbs.*shaw|tokyo drift|f9|fast x/i.test(x.title)))}catch(_){return []}}));
+  const all=batches.flat().sort((a,b)=>b.rating-a.rating);
+  return all.filter((x,i)=>all.findIndex(y=>y.id===x.id)===i).slice(0,6)
+}
 if(p.title){try{const s=await api("search/multi?query="+encodeURIComponent(p.title)+"&include_adult=false&page=1");const m=(s.results||[]).find(x=>x.media_type==="movie"||x.media_type==="tv");if(m){const t=m.media_type==="tv"?"tv":"movie";const r=await api(t+"/"+m.id+"/recommendations?page=1");const a=(r.results||[]).map(x=>norm(x,t)).filter(x=>x.poster);if(a.length>=3)return a.slice(0,6)}}catch(_){}}
 const types=p.type==="both"?["movie","tv"]:[p.type];const batches=await Promise.all(types.map(async t=>{try{const d=await api(query(t,p));return (d.results||[]).map(x=>norm(x,t)).filter(x=>x.poster)}catch(_){return []}}));const all=batches.flat().sort((a,b)=>(b.rating*(p.rating?1.5:.35)+Math.log1p(b.id%1000))-(a.rating*(p.rating?1.5:.35)+Math.log1p(a.id%1000)));return all.filter((x,i)=>all.findIndex(y=>y.id===x.id&&y.type===x.type)===i).slice(0,6)}
-function results(items,p){const section=document.createElement("div");section.className="rf-guide-results";section.innerHTML='<div class="rf-guide-results-head"><span>YOUR SHORTLIST</span><small>'+items.length+' matches</small></div>';const list=document.createElement("div");list.className="rf-guide-result-list";items.forEach((x,i)=>{const c=document.createElement("article");c.className="rf-guide-result";const image=poster(x.poster);let why=p.genres.length?p.genres.slice(0,2).map(g=>labels[g]||g).join(" + "):p.mood||"popular pick";if(p.language)why+=" · "+({hi:"Hindi",ko:"Korean",ja:"Japanese",en:"English"}[p.language]||"language")+" language";if(p.maxRuntime&&x.type==="movie")why+=" · under "+p.maxRuntime+" min";if(p.rating&&x.rating>=p.rating)why+=" · strong rating";c.innerHTML='<a class="rf-guide-result-poster" href="/title/'+encodeURIComponent(x.id)+'?type='+x.type+'" aria-label="Open '+esc(x.title)+'">'+(image?'<img src="'+esc(image)+'" alt="" loading="lazy">':'✦')+'</a><div class="rf-guide-result-copy"><span class="rf-guide-result-kicker">'+(x.type==="tv"?"SERIES":"MOVIE")+' · '+esc(x.year||"YEAR N/A")+'</span><a class="rf-guide-result-title" href="/title/'+encodeURIComponent(x.id)+'?type='+x.type+'">'+esc(x.title)+'</a><span class="rf-guide-rating">★ '+x.rating.toFixed(1)+' <i>/ 10</i></span><p>Matched for '+esc(why)+'.</p></div><span class="rf-guide-result-number">'+String(i+1).padStart(2,"0")+'</span>';list.appendChild(c)});section.appendChild(list);messages.appendChild(section);messages.scrollTop=messages.scrollHeight}
+function results(items,p){const section=document.createElement("div");section.className="rf-guide-results";section.innerHTML='<div class="rf-guide-results-head"><span>YOUR SHORTLIST</span><small>'+items.length+' matches</small></div>';const list=document.createElement("div");list.className="rf-guide-result-list";items.forEach((x,i)=>{const c=document.createElement("article");c.className="rf-guide-result";const image=poster(x.poster);let why=p.franchise==="marvel"?"Marvel Studios":p.topic==="cars"?"car and racing films":p.genres.length?p.genres.slice(0,2).map(g=>labels[g]||g).join(" + "):p.mood||"popular pick";if(p.language)why+=" · "+({hi:"Hindi",ko:"Korean",ja:"Japanese",en:"English"}[p.language]||"language")+" language";if(p.maxRuntime&&x.type==="movie")why+=" · under "+p.maxRuntime+" min";if(p.rating&&x.rating>=p.rating)why+=" · strong rating";c.innerHTML='<a class="rf-guide-result-poster" href="/title/'+encodeURIComponent(x.id)+'?type='+x.type+'" aria-label="Open '+esc(x.title)+'">'+(image?'<img src="'+esc(image)+'" alt="" loading="lazy">':'✦')+'</a><div class="rf-guide-result-copy"><span class="rf-guide-result-kicker">'+(x.type==="tv"?"SERIES":"MOVIE")+' · '+esc(x.year||"YEAR N/A")+'</span><a class="rf-guide-result-title" href="/title/'+encodeURIComponent(x.id)+'?type='+x.type+'">'+esc(x.title)+'</a><span class="rf-guide-rating">★ '+x.rating.toFixed(1)+' <i>/ 10</i></span><p>Matched for '+esc(why)+'.</p></div><span class="rf-guide-result-number">'+String(i+1).padStart(2,"0")+'</span>';list.appendChild(c)});section.appendChild(list);messages.appendChild(section);messages.scrollTop=messages.scrollHeight}
 async function submit(text){
  const q=String(text||"").trim();if(!q||state.busy)return;
  const w=messages.querySelector(".rf-guide-welcome");if(w)w.remove();
  message("user",q);input.value="";input.style.height="auto";state.busy=true;send.disabled=true;root.classList.add("is-thinking");
  const wait=typing();
  try{
-   const p=merge(parse(q));
+   const p=merge(parse(q),q);
+   const likelyDiscovery=Boolean(p.franchise||p.topic||p.genres.length||p.title||p.mood||p.language||p.rating||p.maxRuntime||p.year||/\b(recommend|suggest|find|watch|similar|like|movie|film|series|anime|show|latest|newest)\b/i.test(q));
+   let items=[];
+   if(likelyDiscovery){items=await recommend(p)}
    let reply="";
-   try{reply=await askAI(q)}catch(chatError){reply="I can still search the Rapiflix catalogue, but conversational AI is temporarily unavailable. "+chatError.message}
+   try{reply=await askAI(q,items)}catch(chatError){reply="I can still search the Rapiflix catalogue, but conversational AI is temporarily unavailable. "+chatError.message}
    wait.remove();message("guide",reply);
-   const likelyDiscovery=p.genres.length||p.title||p.mood||p.language||p.rating||p.maxRuntime||p.year||/\b(recommend|suggest|find|watch|similar|like|movie|film|series|anime|show)\b/i.test(q)
-   if(likelyDiscovery){const items=await recommend(p);if(items.length)results(items,p);else if(!reply.includes("temporarily unavailable"))message("guide","I couldn't find matching titles in the catalogue for that request. Try a different genre or title.")}
+   if(likelyDiscovery){if(items.length)results(items,p);else if(!reply.includes("temporarily unavailable"))message("guide","I couldn't verify matching titles in the Rapiflix catalogue for that request. Try a more specific title, studio, or genre.")}
  }catch(e){wait.remove();message("guide",e.message||"Something went wrong. Try again.")}
  finally{state.busy=false;send.disabled=false;root.classList.remove("is-thinking");input.focus()}
 }
