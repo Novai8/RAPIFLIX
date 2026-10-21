@@ -68,13 +68,13 @@ function query(type,p,page=1){const q=new URLSearchParams({page:String(page),inc
 function norm(x,type){return {id:Number(x.id),type,title:x.title||x.name||"Untitled",year:String(x.release_date||x.first_air_date||"").slice(0,4),rating:Number(x.vote_average||0),poster:x.poster_path||"",overview:String(x.overview||"").slice(0,400)}}
 async function recommend(p){
 if(p.franchise==="marvel"){
-  try{const d=await api("discover/movie?"+new URLSearchParams({page:"1",include_adult:"false",with_companies:"420",sort_by:p.latest?"primary_release_date.desc":"popularity.desc","vote_count.gte":"10","primary_release_date.lte":new Date().toISOString().slice(0,10)}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster).slice(0,6)}catch(_){return []}
+  try{const params={include_adult:"false",with_companies:"420",sort_by:p.latest?"primary_release_date.desc":"popularity.desc","vote_count.gte":"10","primary_release_date.lte":new Date().toISOString().slice(0,10)};const pages=await Promise.all([1,2,3].map(async page=>{const d=await api("discover/movie?"+new URLSearchParams({...params,page:String(page)}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster)}));return pages.flat().filter((x,i,all)=>all.findIndex(y=>y.id===x.id)===i).slice(0,24)}catch(_){return []}
 }
 if(p.topic){
   const terms=p.topic==="cars"?["car","racing","automobile","street racing","race car"]:[p.topic,p.topic+" film",p.topic+" movie"];
   const found=await Promise.all(terms.map(async term=>{try{const r=await api("search/keyword?query="+encodeURIComponent(term)+"&page=1");return (r.results||[]).slice(0,2).map(x=>x.id).filter(Boolean)}catch(_){return []}}));
   const ids=[...new Set(found.flat())].slice(0,7);
-  const batches=await Promise.all(ids.map(async id=>{try{const d=await api("discover/movie?"+new URLSearchParams({page:"1",include_adult:"false",with_keywords:String(id),sort_by:"popularity.desc","vote_count.gte":"10"}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster&&(p.topic!=="cars"||!/\bfast\b.*\b(furious|five|x|6|7|8|9)\b|\bfurious\b|hobbs.*shaw|tokyo drift|f9|fast x/i.test(x.title)))}catch(_){return []}}));
+  const batches=await Promise.all(ids.map(async id=>{try{return (await Promise.all([1,2].map(async page=>{const d=await api("discover/movie?"+new URLSearchParams({page:String(page),include_adult:"false",with_keywords:String(id),sort_by:"popularity.desc","vote_count.gte":"10"}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster&&(p.topic!=="cars"||!/\bfast\b.*\b(furious|five|x|6|7|8|9)\b|\bfurious\b|hobbs.*shaw|tokyo drift|f9|fast x/i.test(x.title)))}))).flat()}catch(_){return []}}));
   const all=batches.flat().sort((a,b)=>b.rating-a.rating);
   return all.filter((x,i)=>all.findIndex(y=>y.id===x.id)===i).slice(0,24)
 }
