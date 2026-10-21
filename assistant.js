@@ -67,7 +67,7 @@ async function submit(text){
    let reply="";
    try{reply=await askAI(q)}catch(chatError){reply="I can still search the Rapiflix catalogue, but conversational AI is temporarily unavailable. "+chatError.message}
    wait.remove();message("guide",reply);
-   const likelyDiscovery=p.genres.length||p.title||p.mood||p.language||p.rating||p.maxRuntime||p.year||/\\b(recommend|suggest|find|watch|similar|like|movie|film|series|anime|show)\\b/i.test(q);
+   const likelyDiscovery=p.genres.length||p.title||p.mood||p.language||p.rating||p.maxRuntime||p.year||/\b(recommend|suggest|find|watch|similar|like|movie|film|series|anime|show)\b/i.test(q)
    if(likelyDiscovery){const items=await recommend(p);if(items.length)results(items,p);else if(!reply.includes("temporarily unavailable"))message("guide","I couldn't find matching titles in the catalogue for that request. Try a different genre or title.")}
  }catch(e){wait.remove();message("guide",e.message||"Something went wrong. Try again.")}
  finally{state.busy=false;send.disabled=false;root.classList.remove("is-thinking");input.focus()}
