@@ -45,6 +45,8 @@ function parse(text){
 const l=text.toLowerCase(),p={type:"both",genres:[],language:"",rating:0,maxRuntime:0,year:"",mood:"",title:"",sort:"popularity.desc",franchise:"",topic:"",latest:false};
 if(/\b(marvel|mcu|marvel studios)\b/i.test(l)){p.franchise="marvel";p.type="movie"}
 if(/\b(cars?|automobiles?|motorsport|racing|race cars?|formula 1|f1)\b/i.test(l)){p.topic="cars";p.type="movie"}
+const about=text.match(/\b(?:movies?|films?)\s+(?:about|on|featuring|involving|related to)\s+([^,.!?]+)/i);
+if(about&&!p.franchise){const subject=about[1].split(/\b(?:except|excluding|without|but not)\b/i)[0].trim().replace(/^(the|a|an)\s+/i,"");if(subject){p.topic=subject.toLowerCase();p.type="movie"}}
 if(/\b(latest|newest|most recent|recent|upcoming)\b/i.test(l)){p.latest=true;p.sort="primary_release_date.desc"}
 if(/\b(anime|animated)\b/.test(l))p.genres.push("animation");
 Object.keys(labels).forEach(g=>{if(new RegExp("\\b"+g.replace(/[.*+?^$()|[\]\\]/g,"\\$&")+"\\b","i").test(l)&&!p.genres.includes(g))p.genres.push(g)});
@@ -68,11 +70,11 @@ async function recommend(p){
 if(p.franchise==="marvel"){
   try{const d=await api("discover/movie?"+new URLSearchParams({page:"1",include_adult:"false",with_companies:"420",sort_by:p.latest?"primary_release_date.desc":"popularity.desc","vote_count.gte":"10","primary_release_date.lte":new Date().toISOString().slice(0,10)}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster).slice(0,6)}catch(_){return []}
 }
-if(p.topic==="cars"){
-  const terms=["car","racing","automobile","street racing","race car"];
+if(p.topic){
+  const terms=p.topic==="cars"?["car","racing","automobile","street racing","race car"]:[p.topic,p.topic+" film",p.topic+" movie"];
   const found=await Promise.all(terms.map(async term=>{try{const r=await api("search/keyword?query="+encodeURIComponent(term)+"&page=1");return (r.results||[]).slice(0,2).map(x=>x.id).filter(Boolean)}catch(_){return []}}));
   const ids=[...new Set(found.flat())].slice(0,7);
-  const batches=await Promise.all(ids.map(async id=>{try{const d=await api("discover/movie?"+new URLSearchParams({page:"1",include_adult:"false",with_keywords:String(id),sort_by:"popularity.desc","vote_count.gte":"10"}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster&&!/\bfast\b.*\b(furious|five|x|6|7|8|9)\b|\bfurious\b|hobbs.*shaw|tokyo drift|f9|fast x/i.test(x.title))}catch(_){return []}}));
+  const batches=await Promise.all(ids.map(async id=>{try{const d=await api("discover/movie?"+new URLSearchParams({page:"1",include_adult:"false",with_keywords:String(id),sort_by:"popularity.desc","vote_count.gte":"10"}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster&&(p.topic!=="cars"||!/\bfast\b.*\b(furious|five|x|6|7|8|9)\b|\bfurious\b|hobbs.*shaw|tokyo drift|f9|fast x/i.test(x.title)))}catch(_){return []}}));
   const all=batches.flat().sort((a,b)=>b.rating-a.rating);
   return all.filter((x,i)=>all.findIndex(y=>y.id===x.id)===i).slice(0,6)
 }
