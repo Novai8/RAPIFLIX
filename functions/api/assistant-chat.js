@@ -81,6 +81,13 @@ export async function onRequest({ request, env }) {
     if (query.franchise === "marvel") {
       const pages = await Promise.all(Array.from({length:5},(_,i)=>tmdb("discover/movie",{page:pageStart+i,include_adult:"false",with_companies:420,sort_by:query.latest?"primary_release_date.desc":"popularity.desc","vote_count.gte":10,"primary_release_date.lte":new Date().toISOString().slice(0,10)})));
       for (const data of pages) for (const item of data?.results||[]) discovered.push({title:item.title||item.name,type:"movie",year:String(item.release_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)});
+    } else if (safeQuery(query.topic)) {
+      const topic = safeQuery(query.topic).toLowerCase();
+      const terms = topic === "cars" ? ["car","racing","automobile"] : [topic,topic+" film",topic+" movie"];
+      const keywordSearches = await Promise.all(terms.map(term=>tmdb("search/keyword",{query:term,page:1})));
+      const keywordIds = [...new Set(keywordSearches.flatMap(data=>(data?.results||[]).slice(0,2).map(item=>Number(item.id)).filter(Number.isFinite)))].slice(0,4);
+      const batches = await Promise.all(keywordIds.map(async id=>{const pages=await Promise.all(Array.from({length:3},(_,i)=>tmdb("discover/movie",{page:pageStart+i,include_adult:"false",with_keywords:id,sort_by:"popularity.desc","vote_count.gte":10})));return pages.flatMap(data=>(data?.results||[]).map(item=>({title:item.title||item.name,type:"movie",year:String(item.release_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)})));}));
+      discovered.push(...batches.flat());
     } else if (safeQuery(query.title)) {
       const search = await tmdb("search/multi",{query:safeQuery(query.title),include_adult:"false",page:1}); const match=(search?.results||[]).find(item=>item.media_type==="movie"||item.media_type==="tv");
       if(match){const type=match.media_type==="tv"?"tv":"movie";const pages=await Promise.all(Array.from({length:5},(_,i)=>tmdb(type+"/"+match.id+"/recommendations",{page:pageStart+i})));for(const data of pages)for(const item of data?.results||[])discovered.push({title:item.title||item.name,type,year:String(item.release_date||item.first_air_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)});}
