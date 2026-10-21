@@ -65,7 +65,7 @@ export async function onRequest({ request, env }) {
     return json({ error: "The latest message must be from the user." }, 400);
   }
 
-  const catalogue = Array.isArray(body.catalogue) ? body.catalogue.slice(0, 8).filter((item) =>
+  const catalogue = Array.isArray(body.catalogue) ? body.catalogue.slice(0, 24).filter((item) =>
     item && typeof item.title === "string" && item.title.length <= 160 &&
     (item.type === "movie" || item.type === "tv")
   ).map((item) => ({
@@ -73,13 +73,13 @@ export async function onRequest({ request, env }) {
     type: item.type,
     year: typeof item.year === "string" ? item.year.slice(0, 4) : "",
     rating: Number.isFinite(Number(item.rating)) ? Number(item.rating) : null,
-    overview: typeof item.overview === "string" ? item.overview.slice(0, 400) : ""
+    overview: typeof item.overview === "string" ? item.overview.slice(0, 220) : ""
   })) : [];
 
   const systemText = [
     "You are Rapiflix's accurate conversational film and TV guide. Answer the user's actual latest question, not an earlier topic. Do not reuse a previous recommendation list when the subject changes. Never invent movie titles, release dates, ratings, franchise membership, or streaming availability.",
     catalogue.length
-      ? "For recommendations in this reply, use ONLY the supplied current catalogue shortlist below. Do not add titles that are not in this list. Explain briefly why the supplied titles fit the user's request, and acknowledge when the list is imperfect. Catalogue shortlist: " + JSON.stringify(catalogue)
+      ? "The supplied titles are a relevant live-discovery slice from Rapiflix's TMDB-powered movie and TV catalogue, not the entire catalogue in one prompt. For recommendations, use ONLY titles in this verified current slice and never invent extra titles. Explain briefly why they fit and acknowledge when the matches are imperfect. Catalogue slice (" + catalogue.length + " titles): " + JSON.stringify(catalogue)
       : "No verified catalogue shortlist was supplied for this message. You may answer general factual questions, but if the user asks for recommendations or a list of titles, do not name movies from memory; explain that you could not verify a current shortlist. Never present guesses as verified catalogue results or claim a title is available to stream on Rapiflix.",
     "Keep replies concise, natural, and useful. Distinguish Marvel Studios / MCU releases from other films based on actual metadata. Do not claim to play or stream content yourself."
   ].join("\n");
