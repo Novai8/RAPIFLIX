@@ -69,7 +69,7 @@ export async function onRequest({ request, env }) {
   ];
 
   try {
-    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8", {
       messages: prompt,
       max_tokens: 450,
       temperature: 0.65
@@ -79,7 +79,9 @@ export async function onRequest({ request, env }) {
     return json({ reply });
   } catch (error) {
     console.error("Rapiflix assistant inference failed", {
-      errorName: error instanceof Error ? error.name : "UnknownError"
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorMessage: error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500),
+      model: "@cf/meta/llama-3.1-8b-instruct-fp8"
     });
     return json({ error: "The AI service is temporarily unavailable. Please try again shortly." }, 502);
   }
