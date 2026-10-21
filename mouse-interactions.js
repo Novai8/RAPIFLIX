@@ -12,7 +12,7 @@
   if (!dot || !ring) return;
 
   const label = ring.querySelector("span");
-  let x = -100, y = -100, ringX = x, ringY = y, frame = 0, hovered = null;
+  let x = -100, y = -100, ringX = x, ringY = y, frame = 0, hovered = null, activeCard = null, activeMagnetic = null;
 
   const move = (event) => {
     x = event.clientX;
@@ -66,9 +66,8 @@
   // Cards lean subtly toward the pointer. Delegation keeps this working after SPA route changes.
   document.addEventListener("pointermove", (event) => {
     const card = event.target instanceof Element ? event.target.closest(".movie-card") : null;
-    document.querySelectorAll(".movie-card.is-mouse-tilted").forEach((item) => {
-      if (item !== card) resetCard(item);
-    });
+    if (activeCard && activeCard !== card) resetCard(activeCard);
+    activeCard = card;
     if (!card) return;
     const rect = card.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
@@ -96,12 +95,11 @@
   // Small magnetic pull on primary controls, using CSS translate so existing transforms remain intact.
   document.addEventListener("pointermove", (event) => {
     const el = event.target instanceof Element ? event.target.closest(".hero-cta,.watch-button,.episode-watch,.rf-guide-launcher") : null;
-    document.querySelectorAll(".is-magnetic").forEach((item) => {
-      if (item !== el) {
-        item.classList.remove("is-magnetic");
-        item.style.removeProperty("translate");
-      }
-    });
+    if (activeMagnetic && activeMagnetic !== el) {
+      activeMagnetic.classList.remove("is-magnetic");
+      activeMagnetic.style.removeProperty("translate");
+    }
+    activeMagnetic = el;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const dx = (event.clientX - (rect.left + rect.width / 2)) * 0.10;
