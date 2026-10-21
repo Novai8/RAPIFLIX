@@ -51,8 +51,15 @@ export async function onRequest({ request, env }) {
       return json({ error: "Invalid conversation message." }, 400);
     }
     const content = item.content.trim();
-    if (!content || content.length > 1000) {
-      return json({ error: "Each message must be between 1 and 1000 characters." }, 400);
+    // User input is intentionally capped at 1000 characters. Assistant replies
+    // can be longer, so allow a larger limit for prior model-generated history.
+    const maxLength = item.role === "user" ? 1000 : 4000;
+    if (!content || content.length > maxLength) {
+      return json({
+        error: item.role === "user"
+          ? "Each user message must be between 1 and 1000 characters."
+          : "Previous assistant replies must be between 1 and 4000 characters."
+      }, 400);
     }
     messages.push({ role: item.role, content });
   }
