@@ -71,7 +71,7 @@ if(p.topic==="cars"){
   const terms=["car","racing","automobile","street racing","race car"];
   const found=await Promise.all(terms.map(async term=>{try{const r=await api("search/keyword?query="+encodeURIComponent(term)+"&page=1");return (r.results||[]).slice(0,2).map(x=>x.id).filter(Boolean)}catch(_){return []}}));
   const ids=[...new Set(found.flat())].slice(0,7);
-  const batches=await Promise.all(ids.map(async id=>{try{const d=await api("discover/movie?"+new URLSearchParams({page:"1",include_adult:"false",with_keywords:String(id),sort_by:"popularity.desc","vote_count.gte":"10"}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster&&!/fast\s*(?:&|and)\s*furious|hobbs\s*&\s*shaw|tokyo drift|furious 7|f9:|fast x/i.test(x.title))}catch(_){return []}}));
+  const batches=await Promise.all(ids.map(async id=>{try{const d=await api("discover/movie?"+new URLSearchParams({page:"1",include_adult:"false",with_keywords:String(id),sort_by:"popularity.desc","vote_count.gte":"10"}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster&&!/\bfast\b.*\b(furious|five|x|6|7|8|9)\b|\bfurious\b|hobbs.*shaw|tokyo drift|f9|fast x/i.test(x.title))}catch(_){return []}}));
   const all=batches.flat().sort((a,b)=>b.rating-a.rating);
   return all.filter((x,i)=>all.findIndex(y=>y.id===x.id)===i).slice(0,6)
 }
