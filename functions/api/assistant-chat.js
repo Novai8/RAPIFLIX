@@ -10,7 +10,7 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
 export async function onRequest({ request, env }) {
   // Safe health check confirms the function and binding without exposing secrets.
   if (request.method === "GET") {
-    return json({ status: "ok", endpoint: "assistant-chat", aiBindingAvailable: Boolean(env.AI && typeof env.AI.run === "function") });
+    return json({ status: "ok", endpoint: "assistant-chat", geminiConfigured: Boolean(env.GEMINI_API_KEY), aiBindingAvailable: Boolean(env.AI && typeof env.AI.run === "function") });
   }
   if (request.method !== "POST") {
     return json({ error: "Only GET and POST requests are supported." }, 405);
@@ -28,10 +28,8 @@ export async function onRequest({ request, env }) {
     }
   }
 
-  if (!env.AI || typeof env.AI.run !== "function") {
-    return json({
-      error: "Conversational AI is not enabled for this deployment yet. In Cloudflare Pages, add a Workers AI binding named AI and redeploy."
-    }, 503);
+  if (!env.GEMINI_API_KEY && (!env.AI || typeof env.AI.run !== "function")) {
+    return json({ error: "Conversational AI is not configured. Add a Gemini API key secret named GEMINI_API_KEY or enable the Workers AI binding named AI." }, 503);
   }
 
   let body;
@@ -67,29 +65,65 @@ export async function onRequest({ request, env }) {
     return json({ error: "The latest message must be from the user." }, 400);
   }
 
-  const prompt = [
-    {
-      role: "system",
-      content: "You are Rapiflix's conversational movie and TV discovery guide. Talk naturally and helpfully. Answer questions about films, TV series, anime, genres, themes, viewing moods, and comparisons. Ask a concise clarifying question when the request is vague. When appropriate, suggest a few titles and explain why they fit, but never invent precise catalogue facts, ratings, release dates, or streaming availability. The website has a separate live catalogue recommender that can show title cards. Keep replies readable, concise, and safe for a general audience. Do not claim to play or stream content yourself."
-    },
-    ...messages
-  ];
+  const catalogue = Array.isArray(body.catalogue) ? body.catalogue.slice(0, 8).filter((item) =>
+    item && typeof item.title === "string" && item.title.length <= 160 &&
+    (item.type === "movie" || item.type === "tv")
+  ).map((item) => ({
+    title: item.title,
+    type: item.type,
+    year: typeof item.year === "string" ? item.year.slice(0, 4) : "",
+    rating: Number.isFinite(Number(item.rating)) ? Number(item.rating) : null,
+    overview: typeof item.overview === "string" ? item.overview.slice(0, 400) : ""
+  })) : [];
+
+  const systemText = [
+    "You are Rapiflix's accurate conversational film and TV guide. Answer the user's actual latest question, not an earlier topic. Do not reuse a previous recommendation list when the subject changes. Never invent movie titles, release dates, ratings, franchise membership, or streaming availability.",
+    catalogue.length
+      ? "For recommendations in this reply, use ONLY the supplied current catalogue shortlist below. Do not add titles that are not in this list. Explain briefly why the supplied titles fit the user's request, and acknowledge when the list is imperfect. Catalogue shortlist: " + JSON.stringify(catalogue)
+      : "No verified catalogue shortlist was supplied for this message. You may discuss film knowledge generally, but do not present guesses as verified catalogue results or claim a title is available to stream on Rapiflix.",
+    "Keep replies concise, natural, and useful. Distinguish Marvel Studios / MCU releases from other films based on actual metadata. Do not claim to play or stream content yourself."
+  ].join("\\n");
 
   try {
-    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8", {
-      messages: prompt,
-      max_tokens: 450,
-      temperature: 0.65
-    });
-    const reply = typeof result?.response === "string" ? result.response.trim() : "";
-    if (!reply) return json({ error: "The AI guide could not generate a reply. Please try again." }, 502);
-    return json({ reply });
+    let reply = "";
+    let usedModel = "";
+    if (env.GEMINI_API_KEY) {
+      usedModel = "gemini-3.8-flash";
+      const history = messages.map((item) => ({
+        role: item.role === "assistant" ? "model" : "user",
+        parts: [{ text: item.content }]
+      }));
+      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + encodeURIComponent(env.GEMINI_API_KEY), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemText }] },
+          contents: history,
+          generationConfig: { maxOutputTokens: 500, temperature: 0.35 }
+        })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error("Gemini API HTTP " + response.status + ": " + String(payload?.error?.message || "request failed").slice(0, 350));
+      reply = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim() || "";
+      if (!reply) throw new Error("Gemini returned an empty response");
+    } else {
+      usedModel = "@cf/meta/llama-3.1-8b-instruct-fp8";
+      const prompt = [{ role: "system", content: systemText }, ...messages];
+      const result = await env.AI.run(usedModel, {
+        messages: prompt,
+        max_tokens: 500,
+        temperature: 0.35
+      });
+      reply = typeof result?.response === "string" ? result.response.trim() : "";
+      if (!reply) throw new Error("Workers AI returned an empty response");
+    }
+    return json({ reply, model: usedModel });
   } catch (error) {
     console.error("Rapiflix assistant inference failed", {
       errorName: error instanceof Error ? error.name : "UnknownError",
       errorMessage: error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500),
-      model: "@cf/meta/llama-3.1-8b-instruct-fp8"
+      model: env.GEMINI_API_KEY ? "gemini-3.8-flash" : "@cf/meta/llama-3.1-8b-instruct-fp8"
     });
-    return json({ error: "The AI service is temporarily unavailable. Please try again shortly." }, 502);
+    return json({ error: "The AI service is temporarily unavailable. Please check the Function logs and try again." }, 502);
   }
 }
