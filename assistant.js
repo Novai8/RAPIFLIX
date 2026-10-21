@@ -24,11 +24,11 @@ $("#rfGuideClear").addEventListener("click",()=>{state.prefs=[];state.chat=[];we
 function message(role,text){const el=document.createElement("div");el.className="rf-guide-message "+(role==="user"?"from-user":"from-guide");el.innerHTML='<span class="rf-guide-message-label">'+(role==="user"?"YOU":"RAPIFLIX GUIDE")+'</span><p>'+esc(text)+'</p>';messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el}
 function typing(){const el=document.createElement("div");el.className="rf-guide-message from-guide rf-guide-typing";el.innerHTML='<span class="rf-guide-message-label">RAPIFLIX GUIDE</span><p><i></i><i></i><i></i><span>Scanning the catalogue</span></p>';messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el}
 async function api(path){const r=await fetch("/api/tmdb/"+path);if(!r.ok)throw Error("The catalogue is temporarily unavailable.");return r.json()}
-async function askAI(text,items=[]){
+async function askAI(text,items=[],catalogueQuery=null){
   const next=[...state.chat,{role:"user",content:text}].slice(-12);
   if(next[0]?.role==="assistant")next.shift();
   const catalogue=(items||[]).slice(0,100).map(x=>({title:x.title,type:x.type,year:x.year,rating:x.rating,overview:String(x.overview||"").slice(0,220)}));
-  const response=await fetch("/api/assistant-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:next,catalogue})});
+  const response=await fetch("/api/assistant-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:next,catalogue,catalogueQuery})});
   const contentType=response.headers.get("content-type")||"";
   const data=contentType.includes("application/json")?await response.json().catch(()=>({})): {};
   if(!response.ok){
@@ -93,7 +93,7 @@ async function submit(text){
    let items=[];
    if(likelyDiscovery){state.activePrefs=p;state.nextPage=4;state.allItems=[];items=await recommend(p,1,3);state.allItems=items.slice()}
    let reply="";
-   try{reply=await askAI(q,items)}catch(chatError){reply="I can still search the Rapiflix catalogue, but conversational AI is temporarily unavailable. "+chatError.message}
+   try{reply=await askAI(q,items,p)}catch(chatError){reply="I can still search the Rapiflix catalogue, but conversational AI is temporarily unavailable. "+chatError.message}
    wait.remove();message("guide",reply);
    if(likelyDiscovery){if(items.length)results(items,p);else if(!reply.includes("temporarily unavailable"))message("guide","I couldn't verify matching titles in the Rapiflix catalogue for that request. Try a more specific title, studio, or genre.")}
  }catch(e){wait.remove();message("guide",e.message||"Something went wrong. Try again.")}
