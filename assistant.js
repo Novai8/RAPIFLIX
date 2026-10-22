@@ -53,7 +53,7 @@ if(/\b(latest|newest|most recent|recent|upcoming)\b/i.test(l)){p.latest=true;p.s
 if(/\b(anime|animated)\b/.test(l))p.genres.push("animation");
 Object.keys(labels).forEach(g=>{if(new RegExp("\\b"+g.replace(/[.*+?^$()|[\]\\]/g,"\\$&")+"\\b","i").test(l)&&!p.genres.includes(g))p.genres.push(g)});
 if(/\b(series|tv show|tv series|show|episodes|season)\b/.test(l))p.type="tv";
-if(/\b(movie|film|cinema)\b/.test(l))p.type=p.type==="tv"?"both":"movie";
+if(/\b(movies?|films?|cinema)\b/.test(l))p.type=p.type==="tv"?"both":"movie";
 if(/\b(hindi|bollywood|indian)\b/.test(l))p.language="hi";else if(/\b(korean|k-drama|kdrama)\b/.test(l))p.language="ko";else if(/\b(japanese|japan)\b/.test(l))p.language="ja";else if(/\b(english|hollywood)\b/.test(l))p.language="en";
 if(/\b(highly rated|best rated|top rated|masterpiece|critically acclaimed)\b/.test(l)){p.rating=7.3;p.sort="vote_average.desc"}
 const rt=l.match(/\b(?:under|less than|within)\s*(\d{1,3})\s*(?:min|minutes)\b/);if(rt)p.maxRuntime=Math.min(240,Math.max(45,Number(rt[1])));else if(/\b(short|quick|not too long)\b/.test(l))p.maxRuntime=100;
