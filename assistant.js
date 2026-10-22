@@ -93,9 +93,14 @@ async function submit(text){
    const p=merge(parse(q),q);
    const likelyDiscovery=Boolean(p.franchise||p.topic||p.genres.length||p.title||p.mood||p.language||p.rating||p.maxRuntime||p.year||/\b(recommend|suggest|find|watch|similar|like|movie|film|series|anime|show|latest|newest)\b/i.test(q));
    let items=[];
-   if(likelyDiscovery){state.activePrefs=p;state.nextPage=4;state.allItems=[];items=await recommend(p,1,3);state.allItems=items.slice()}
-   let reply="";
-   try{reply=await askAI(q,items,p)}catch(chatError){reply="I can still search the Rapiflix catalogue, but conversational AI is temporarily unavailable. "+chatError.message}
+   if(likelyDiscovery){state.activePrefs=p;state.nextPage=4;state.allItems=[]}
+   // Start the chat request and browser catalogue search together.
+   const searchPromise=likelyDiscovery?recommend(p,1,3).catch(()=>[]):Promise.resolve([]);
+   const chatPromise=askAI(q,[],p).then(reply=>({reply})).catch(error=>({error}));
+   items=await searchPromise;
+   state.allItems=items.slice();
+   const chatResult=await chatPromise;
+   const reply=chatResult.reply||("I can still search the Rapiflix catalogue, but conversational AI is temporarily unavailable. "+(chatResult.error?.message||"Please try again."));
    wait.remove();message("guide",reply);
    if(likelyDiscovery){if(items.length)results(items,p);else if(!reply.includes("temporarily unavailable"))message("guide","I couldn't verify matching titles in the Rapiflix catalogue for that request. Try a more specific title, studio, or genre.")}
  }catch(e){wait.remove();message("guide",e.message||"Something went wrong. Try again.")}
