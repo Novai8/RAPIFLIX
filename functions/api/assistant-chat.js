@@ -108,12 +108,22 @@ export async function onRequest({ request, env }) {
     overview: typeof item.overview === "string" ? item.overview.slice(0, 140) : ""
   })) : [];
 
+  if (safeQuery(query.releaseYearTitle)) {
+    const titleQuery=safeQuery(query.releaseYearTitle,120);
+    const search=await tmdb("search/multi",{query:titleQuery,include_adult:"false",page:1});
+    const candidates=(search?.results||[]).filter(item=>item.media_type==="movie"||item.media_type==="tv");
+    const match=candidates.find(item=>String(item.title||item.name||"").toLowerCase()===titleQuery.toLowerCase())||candidates[0];
+    if(match){
+      const isTv=match.media_type==="tv";
+      discovered.unshift({title:match.title||match.name,type:isTv?"tv":"movie",year:String(match.release_date||match.first_air_date||"").slice(0,4),rating:Number(match.vote_average||0),voteCount:Number(match.vote_count||0),overview:String(match.overview||"").slice(0,220)});
+    }
+  }
   const mergedCatalogue = [...discovered, ...catalogue].filter((item,index,all)=>item.title && all.findIndex(other=>other.type===item.type && other.title.toLowerCase()===item.title.toLowerCase())===index).sort((a,b)=>(b.voteCount||0)-(a.voteCount||0)||(b.rating||0)-(a.rating||0)).slice(0,100);
   const lastUserText = messages[messages.length - 1].content;
   const asksForTitles = /\b(recommend|suggest|find|list|top|best|movies?|films?|series|shows?|anime|watch|similar|like|from\s+(?:19|20)\d{2}|\d{4})\b/i.test(lastUserText);
 
   const systemText = [
-    "You are Rapiflix's accurate conversational film and TV guide. Answer the user's actual latest question, not an earlier topic. Do not reuse a previous recommendation list when the subject changes. Never invent movie titles, release dates, ratings, franchise membership, or streaming availability.",
+    "You are Rapiflix's accurate conversational film and TV guide. Answer the user's actual latest question, not an earlier topic. Use the full recent conversation history to resolve follow-ups and retain prior constraints like a requested release year unless the user changes them or starts a new topic. Never invent movie titles, release dates, ratings, franchise membership, or streaming availability. For questions asking when a named movie or show was released, use the verified TMDB catalogue year in the context; if no matching metadata exists, say you could not verify the year rather than guessing.",
     mergedCatalogue.length
       ? "You have access to a dynamically searched slice of Rapiflix's TMDB-powered movie and TV catalogue. It is not the whole global catalogue in one prompt, but it was searched server-side for this request. Recommend ONLY titles in this verified set and never invent extra titles. Catalogue results (" + mergedCatalogue.length + " titles): " + JSON.stringify(mergedCatalogue)
       : "No verified catalogue shortlist was supplied for this message. You may answer general factual questions, but if the user asks for recommendations or a list of titles, do not name movies from memory; explain that you could not verify a current shortlist. Never present guesses as verified catalogue results or claim a title is available to stream on Rapiflix.",
