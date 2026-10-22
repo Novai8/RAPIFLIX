@@ -63,12 +63,46 @@ if(/\b(scary|terrifying|creepy|spooky)\b/.test(l)){p.mood="scary";p.genres.push(
 if(/\b(mind.bending|twist|plot twist|brain.bending|psychological)\b/.test(l)){p.mood="mind-bending";p.genres.push("thriller","mystery","science")}
 if(/\b(sad|emotional|tearjerker|make me cry)\b/.test(l))p.mood="emotional";
 const like=text.match(/\b(?:like|similar to|same vibe as)\s+["“]?([^,.!?]+)["”]?/i);if(like)p.title=like[1].replace(/\b(but|with|and|under|that|which)\b.*$/i,"").trim();
+const releaseQuestion=text.match(/\b(?:what year was|in what year was|which year was|when was)\s+(.+?)\s+(?:first\s+)?(?:released|premiered|came out)\b/i)
+  || text.match(/\b(?:release year of|year of release for)\s+(.+?)\s*\??$/i)
+  || text.match(/\bwhen did\s+(.+?)\s+(?:come out|release)\s*\??$/i);
+if(releaseQuestion){p.releaseYearTitle=releaseQuestion[1].replace(/\b(the movie|the film|movie|film)\b/ig,"").trim().replace(/^["“]|["”]$/g,"");p.type=/\b(series|tv show|tv series|show|episode)\b/i.test(l)?"tv":"movie";p.genres=[];p.franchise="";p.topic="";p.title="";p.mood="";}
 p.genres=[...new Set(p.genres)].slice(0,3);return p
 }
-function merge(p,text){const followup=/\b(more|another|more like that|similar ones|those|that list|same vibe|keep going)\b/i.test(text);if(!followup||!state.prefs.length){state.prefs=[p];return p}const previous=state.prefs[state.prefs.length-1];const out={...previous,...p,genres:p.genres.length?p.genres:previous.genres,type:p.type==="both"?previous.type:p.type,franchise:p.franchise||previous.franchise,topic:p.topic||previous.topic,latest:p.latest||false};state.prefs=[out];return out}
+function merge(p,text){
+ const previous=state.prefs[state.prefs.length-1];
+ if(!previous){state.prefs=[p];return p}
+ const reset=/\b(forget that|new topic|different topic|start over|unrelated question)\b/i.test(text)
+   || Boolean((p.franchise&&p.franchise!==previous.franchise)||(p.topic&&p.topic!==previous.topic)||(p.releaseYearTitle)||(p.title&&p.title!==previous.title));
+ if(reset){state.prefs=[p];return p}
+ const out={...previous,...p,
+   year:p.year||(p.latest?"":previous.year),
+   genres:p.genres.length?p.genres:previous.genres,
+   language:p.language||previous.language,
+   maxRuntime:p.maxRuntime||previous.maxRuntime,
+   rating:p.rating||previous.rating,
+   mood:p.mood||previous.mood,
+   type:p.type==="both"?previous.type:p.type,
+   franchise:p.franchise||previous.franchise,
+   topic:p.topic||previous.topic,
+   title:p.title||previous.title,
+   latest:p.latest?true:(p.year?"":previous.latest),
+   releaseYearTitle:p.releaseYearTitle||""
+ };
+ state.prefs=[out];return out
+}
 function query(type,p,page=1){const q=new URLSearchParams({page:String(page),include_adult:"false",sort_by:"vote_count.desc","vote_count.gte":p.rating?"100":"40"});if(p.franchise==="marvel")q.set("with_companies","420");if(p.latest){q.set("primary_release_date.lte",new Date().toISOString().slice(0,10));}if(p.rating)q.set("vote_average.gte",String(p.rating));const map=type==="tv"?tg:mg;const ids=[...new Set(p.genres.map(g=>map[g]).filter(Boolean))];if(ids.length)q.set("with_genres",ids.join(","));if(p.language)q.set("with_original_language",p.language);if(p.year)q.set(type==="tv"?"first_air_date_year":"primary_release_year",p.year);if(p.maxRuntime&&type==="movie")q.set("with_runtime.lte",String(p.maxRuntime));return "discover/"+type+"?"+q.toString()}
-function norm(x,type){return {id:Number(x.id),type,title:x.title||x.name||"Untitled",year:String(x.release_date||x.first_air_date||"").slice(0,4),rating:Number(x.vote_average||0),voteCount:Number(x.vote_count||0),poster:x.poster_path||"",overview:String(x.overview||"").slice(0,400)}}
+function norm(x,type){return {id:Number(x.id),type,title:x.title||x.name||"Untitled",year:String(x.release_date||x.first_air_date||"").slice(0,4),releaseDate:String(x.release_date||x.first_air_date||""),rating:Number(x.vote_average||0),voteCount:Number(x.vote_count||0),poster:x.poster_path||"",overview:String(x.overview||"").slice(0,400)}}
 async function recommend(p,startPage=1,pageCount=3){
+if(p.releaseYearTitle){
+ try{
+  const data=await api("search/multi?query="+encodeURIComponent(p.releaseYearTitle)+"&include_adult=false&page=1");
+  const candidates=(data.results||[]).filter(x=>x.media_type==="movie"||x.media_type==="tv");
+  const exact=candidates.find(x=>String(x.title||x.name||"").toLowerCase()===p.releaseYearTitle.toLowerCase());
+  const match=exact||candidates[0];if(!match)return [];
+  return [norm(match,match.media_type==="tv"?"tv":"movie")];
+ }catch(_){return []}
+}
 if(p.franchise==="marvel"){
   try{const params={include_adult:"false",with_companies:"420",sort_by:"vote_count.desc","vote_count.gte":"10","primary_release_date.lte":new Date().toISOString().slice(0,10)};const pages=await Promise.all(Array.from({length:pageCount},(_,i)=>startPage+i).filter(page=>page<=500).map(async page=>{const d=await api("discover/movie?"+new URLSearchParams({...params,page:String(page)}));return (d.results||[]).map(x=>norm(x,"movie")).filter(x=>x.poster)}));return pages.flat().filter((x,i,all)=>all.findIndex(y=>y.id===x.id)===i).sort((a,b)=>b.voteCount-a.voteCount||b.rating-a.rating)}catch(_){return []}
 }
@@ -91,7 +125,7 @@ async function submit(text){
  const wait=typing();
  try{
    const p=merge(parse(q),q);
-   const likelyDiscovery=Boolean(p.franchise||p.topic||p.genres.length||p.title||p.mood||p.language||p.rating||p.maxRuntime||p.year||/\b(recommend|suggest|find|watch|similar|like|movie|film|series|anime|show|latest|newest)\b/i.test(q));
+   const likelyDiscovery=Boolean(p.releaseYearTitle||p.franchise||p.topic||p.genres.length||p.title||p.mood||p.language||p.rating||p.maxRuntime||p.year||/\b(recommend|suggest|find|watch|similar|like|movie|film|series|anime|show|latest|newest)\b/i.test(q));
    let items=[];
    if(likelyDiscovery){state.activePrefs=p;state.nextPage=4;state.allItems=[]}
    // Start the chat request and browser catalogue search together.
@@ -101,9 +135,15 @@ async function submit(text){
    state.allItems=items.slice();
    const chatResult=await chatPromise;
    let reply=chatResult.reply||("I can still search the Rapiflix catalogue, but conversational AI is temporarily unavailable. "+(chatResult.error?.message||"Please try again."));
-   if(likelyDiscovery && items.length){const exact=items.slice(0,p.count||5);const list=exact.map((x,i)=>(i+1)+". "+x.title+" ("+(x.year||"year unavailable")+") · TMDB "+x.rating.toFixed(1)+"/10 · "+Number(x.voteCount||0).toLocaleString()+" votes").join("\n");reply="I matched your request against the Rapiflix catalogue. These are the verified results, ranked by TMDB vote count:\n\n"+list;}
+   if(p.releaseYearTitle && items.length){
+     const item=items[0];
+     reply=item.year
+       ? "According to the TMDB catalogue, "+item.title+" was released in "+item.year+(item.releaseDate?" (release date: "+item.releaseDate+").":".")
+       : "I found "+item.title+" in TMDB, but its release year is not available in the returned metadata.";
+     if(state.chat.length)state.chat[state.chat.length-1]={role:"assistant",content:reply};
+   }else if(likelyDiscovery && items.length){const exact=items.slice(0,p.count||5);const list=exact.map((x,i)=>(i+1)+". "+x.title+" ("+(x.year||"year unavailable")+") · TMDB "+x.rating.toFixed(1)+"/10 · "+Number(x.voteCount||0).toLocaleString()+" votes").join("\n");reply="I matched your request against the Rapiflix catalogue. These are the verified results, ranked by TMDB vote count:\n\n"+list;}
    wait.remove();message("guide",reply);
-   if(likelyDiscovery){if(items.length)results(items,p);else if(!reply.includes("temporarily unavailable"))message("guide","I couldn’t verify matching titles in the Rapiflix catalogue for that request. Try a more specific title, studio, or genre.")}
+   if(likelyDiscovery){if(items.length&&!p.releaseYearTitle)results(items,p);else if(!items.length&&!reply.includes("temporarily unavailable"))message("guide",p.releaseYearTitle?"I couldn’t verify that title or its release year in TMDB. Try the full movie title.":"I couldn’t verify matching titles in the Rapiflix catalogue for that request. Try a more specific title, studio, or genre.")}
  }catch(e){wait.remove();message("guide",e.message||"Something went wrong. Try again.")}
  finally{state.busy=false;send.disabled=false;root.classList.remove("is-thinking");input.focus()}
 }
