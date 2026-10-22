@@ -101,7 +101,7 @@ async function submit(text){
    state.allItems=items.slice();
    const chatResult=await chatPromise;
    let reply=chatResult.reply||("I can still search the Rapiflix catalogue, but conversational AI is temporarily unavailable. "+(chatResult.error?.message||"Please try again."));
-   if(likelyDiscovery && items.length){const exact=items.slice(0,p.count||5);const list=exact.map((x,i)=>(i+1)+". "+x.title+" ("+(x.year||"year unavailable")+") · TMDB "+x.rating.toFixed(1)+"/10 · "+Number(x.voteCount||0).toLocaleString()+" votes").join("\n");reply=reply+"\n\nTop verified matches, ranked by TMDB vote count:\n"+list;}
+   if(likelyDiscovery && items.length){const exact=items.slice(0,p.count||5);const list=exact.map((x,i)=>(i+1)+". "+x.title+" ("+(x.year||"year unavailable")+") · TMDB "+x.rating.toFixed(1)+"/10 · "+Number(x.voteCount||0).toLocaleString()+" votes").join("\n");reply="I matched your request against the Rapiflix catalogue. These are the verified results, ranked by TMDB vote count:\n\n"+list;}
    wait.remove();message("guide",reply);
    if(likelyDiscovery){if(items.length)results(items,p);else if(!reply.includes("temporarily unavailable"))message("guide","I couldn’t verify matching titles in the Rapiflix catalogue for that request. Try a more specific title, studio, or genre.")}
  }catch(e){wait.remove();message("guide",e.message||"Something went wrong. Try again.")}
