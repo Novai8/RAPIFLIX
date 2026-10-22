@@ -68,6 +68,7 @@ export async function onRequest({ request, env }) {
   // Server-side TMDB discovery means recommendations are not limited to pages preloaded in the browser.
   const discovered = [];
   const query = body.catalogueQuery && typeof body.catalogueQuery === "object" ? body.catalogueQuery : {};
+  const requestedCount = Math.max(1, Math.min(20, Number(body.requestedCount) || 5));
   const genreIds = { movie: { action:28, adventure:12, animation:16, comedy:35, crime:80, documentary:99, drama:18, family:10751, fantasy:14, history:36, horror:27, music:10402, mystery:9648, romance:10749, science:878, "sci-fi":878, thriller:53, war:10752, western:37 }, tv: { action:10759, adventure:10759, animation:16, comedy:35, crime:80, documentary:99, drama:18, family:10751, fantasy:10765, history:36, horror:9648, mystery:9648, romance:10749, science:10765, "sci-fi":10765, thriller:9648, war:10768, western:37 } };
   const safeQuery = (value, max=80) => typeof value === "string" ? value.trim().slice(0,max) : "";
   async function tmdb(path, params={}) { if (!env.TMDB_API_KEY) return null; const url = new URL("https://api.themoviedb.org/3/" + path); for (const [key,value] of Object.entries(params)) if (value !== undefined && value !== null && value !== "") url.searchParams.set(key,String(value)); url.searchParams.set("api_key",env.TMDB_API_KEY); const response = await fetch(url.toString(),{headers:{Accept:"application/json"},cf:{cacheTtl:240,cacheEverything:true}}); if(!response.ok)return null; return response.json().catch(()=>null); }
@@ -113,7 +114,7 @@ export async function onRequest({ request, env }) {
     mergedCatalogue.length
       ? "You have access to a dynamically searched slice of Rapiflix's TMDB-powered movie and TV catalogue. It is not the whole global catalogue in one prompt, but it was searched server-side for this request. Recommend ONLY titles in this verified set and never invent extra titles. Catalogue results (" + mergedCatalogue.length + " titles): " + JSON.stringify(mergedCatalogue)
       : "No verified catalogue shortlist was supplied for this message. You may answer general factual questions, but if the user asks for recommendations or a list of titles, do not name movies from memory; explain that you could not verify a current shortlist. Never present guesses as verified catalogue results or claim a title is available to stream on Rapiflix.",
-    "Keep replies concise, natural, and useful. Distinguish Marvel Studios / MCU releases from other films based on actual metadata. Do not claim to play or stream content yourself."
+    "Keep replies concise, natural, and useful. For a recommendation or list request, provide exactly " + requestedCount + " titles unless fewer verified matches exist or the user explicitly asks for fewer. Default to exactly five titles when no number is specified. Never dump the full catalogue, all matching results, or more titles than requested. Use a short numbered list with one brief reason per title; do not repeat titles. The catalogue context may contain many candidates, but it is reference data, not the number of results to output. Distinguish Marvel Studios / MCU releases from other films based on actual metadata. Do not claim to play or stream content yourself."
   ].join("\n");
 
   try {
