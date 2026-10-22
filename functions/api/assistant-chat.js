@@ -80,20 +80,20 @@ export async function onRequest({ request, env }) {
   const pageStart = Math.max(1,Math.min(496,Number(query.pageStart)||1));
   try {
     if (query.franchise === "marvel") {
-      const pages = await Promise.all(Array.from({length:5},(_,i)=>tmdb("discover/movie",{page:pageStart+i,include_adult:"false",with_companies:420,sort_by:query.latest?"primary_release_date.desc":"popularity.desc","vote_count.gte":10,"primary_release_date.lte":new Date().toISOString().slice(0,10)})));
+      const pages = await Promise.all(Array.from({length:2},(_,i)=>tmdb("discover/movie",{page:pageStart+i,include_adult:"false",with_companies:420,sort_by:query.latest?"primary_release_date.desc":"popularity.desc","vote_count.gte":10,"primary_release_date.lte":new Date().toISOString().slice(0,10)})));
       for (const data of pages) for (const item of data?.results||[]) discovered.push({title:item.title||item.name,type:"movie",year:String(item.release_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)});
     } else if (safeQuery(query.topic)) {
       const topic = safeQuery(query.topic).toLowerCase();
-      const terms = topic === "cars" ? ["car","racing","automobile"] : [topic,topic+" film",topic+" movie"];
+      const terms = topic === "cars" ? ["car","racing"] : [topic,topic+" film"];
       const keywordSearches = await Promise.all(terms.map(term=>tmdb("search/keyword",{query:term,page:1})));
-      const keywordIds = [...new Set(keywordSearches.flatMap(data=>(data?.results||[]).slice(0,2).map(item=>Number(item.id)).filter(Number.isFinite)))].slice(0,4);
-      const batches = await Promise.all(keywordIds.map(async id=>{const pages=await Promise.all(Array.from({length:3},(_,i)=>tmdb("discover/movie",{page:pageStart+i,include_adult:"false",with_keywords:id,sort_by:"popularity.desc","vote_count.gte":10})));return pages.flatMap(data=>(data?.results||[]).map(item=>({title:item.title||item.name,type:"movie",year:String(item.release_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)})));}));
+      const keywordIds = [...new Set(keywordSearches.flatMap(data=>(data?.results||[]).slice(0,2).map(item=>Number(item.id)).filter(Number.isFinite)))].slice(0,2);
+      const batches = await Promise.all(keywordIds.map(async id=>{const pages=await Promise.all(Array.from({length:2},(_,i)=>tmdb("discover/movie",{page:pageStart+i,include_adult:"false",with_keywords:id,sort_by:"popularity.desc","vote_count.gte":10})));return pages.flatMap(data=>(data?.results||[]).map(item=>({title:item.title||item.name,type:"movie",year:String(item.release_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)})));}));
       discovered.push(...batches.flat());
     } else if (safeQuery(query.title)) {
       const search = await tmdb("search/multi",{query:safeQuery(query.title),include_adult:"false",page:1}); const match=(search?.results||[]).find(item=>item.media_type==="movie"||item.media_type==="tv");
-      if(match){const type=match.media_type==="tv"?"tv":"movie";const pages=await Promise.all(Array.from({length:5},(_,i)=>tmdb(type+"/"+match.id+"/recommendations",{page:pageStart+i})));for(const data of pages)for(const item of data?.results||[])discovered.push({title:item.title||item.name,type,year:String(item.release_date||item.first_air_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)});}
+      if(match){const type=match.media_type==="tv"?"tv":"movie";const pages=await Promise.all(Array.from({length:2},(_,i)=>tmdb(type+"/"+match.id+"/recommendations",{page:pageStart+i})));for(const data of pages)for(const item of data?.results||[])discovered.push({title:item.title||item.name,type,year:String(item.release_date||item.first_air_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)});}
     } else {
-      const batches = await Promise.all(types.map(async type=>{const map=genreIds[type];const ids=[...new Set(genres.map(g=>map[g]).filter(Boolean))];const params={include_adult:"false",sort_by:query.latest?(type==="tv"?"first_air_date.desc":"primary_release_date.desc"):safeQuery(query.sort,40)||"popularity.desc","vote_count.gte":query.rating?10:40};if(ids.length)params.with_genres=ids.join(",");if(language)params.with_original_language=language;if(year)params[type==="tv"?"first_air_date_year":"primary_release_year"]=year;if(maxRuntime&&type==="movie")params["with_runtime.lte"]=maxRuntime;if(query.franchise==="marvel"&&type==="movie")params.with_companies=420;const pages=await Promise.all(Array.from({length:5},(_,i)=>tmdb("discover/"+type,{...params,page:pageStart+i})));return pages.flatMap(data=>(data?.results||[]).map(item=>({title:item.title||item.name,type,year:String(item.release_date||item.first_air_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)})));}));discovered.push(...batches.flat());
+      const batches = await Promise.all(types.map(async type=>{const map=genreIds[type];const ids=[...new Set(genres.map(g=>map[g]).filter(Boolean))];const params={include_adult:"false",sort_by:query.latest?(type==="tv"?"first_air_date.desc":"primary_release_date.desc"):safeQuery(query.sort,40)||"popularity.desc","vote_count.gte":query.rating?10:40};if(ids.length)params.with_genres=ids.join(",");if(language)params.with_original_language=language;if(year)params[type==="tv"?"first_air_date_year":"primary_release_year"]=year;if(maxRuntime&&type==="movie")params["with_runtime.lte"]=maxRuntime;if(query.franchise==="marvel"&&type==="movie")params.with_companies=420;const pages=await Promise.all(Array.from({length:2},(_,i)=>tmdb("discover/"+type,{...params,page:pageStart+i})));return pages.flatMap(data=>(data?.results||[]).map(item=>({title:item.title||item.name,type,year:String(item.release_date||item.first_air_date||"").slice(0,4),rating:Number(item.vote_average||0),overview:String(item.overview||"").slice(0,140)})));}));discovered.push(...batches.flat());
     }
   } catch(error) { console.error("Rapiflix catalogue discovery failed",{errorName:error instanceof Error?error.name:"UnknownError"}); }
   const catalogue = Array.isArray(body.catalogue) ? body.catalogue.slice(0, 100).filter((item) =>
@@ -121,41 +121,47 @@ export async function onRequest({ request, env }) {
     let reply = "";
     let usedModel = "";
     if (env.GEMINI_API_KEY) {
-      usedModel = "gemini-3.8-flash";
-      const history = messages.map((item) => ({
-        role: item.role === "assistant" ? "model" : "user",
-        parts: [{ text: item.content }]
-      }));
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + encodeURIComponent(env.GEMINI_API_KEY), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemText }] },
-          contents: history,
-          generationConfig: { maxOutputTokens: 500, temperature: 0.35 }
-        })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error("Gemini API HTTP " + response.status + ": " + String(payload?.error?.message || "request failed").slice(0, 350));
-      reply = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim() || "";
-      if (!reply) throw new Error("Gemini returned an empty response");
-    } else {
+      try {
+        usedModel = "gemini-3.8-flash";
+        const history = messages.map((item) => ({
+          role: item.role === "assistant" ? "model" : "user",
+          parts: [{ text: item.content }]
+        }));
+        const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + encodeURIComponent(env.GEMINI_API_KEY), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemText }] },
+            contents: history,
+            generationConfig: { maxOutputTokens: 500, temperature: 0.35 }
+          })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error("Gemini API HTTP " + response.status + ": " + String(payload?.error?.message || "request failed").slice(0, 350));
+        reply = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim() || "";
+        if (!reply) throw new Error("Gemini returned an empty response");
+      } catch (geminiError) {
+        console.error("Rapiflix Gemini inference failed; attempting Workers AI fallback", {
+          errorName: geminiError instanceof Error ? geminiError.name : "UnknownError",
+          errorMessage: geminiError instanceof Error ? geminiError.message.slice(0, 300) : String(geminiError).slice(0, 300)
+        });
+        if (!env.AI || typeof env.AI.run !== "function") throw geminiError;
+      }
+    }
+    if (!reply && env.AI && typeof env.AI.run === "function") {
       usedModel = "@cf/meta/llama-3.1-8b-instruct-fp8";
       const prompt = [{ role: "system", content: systemText }, ...messages];
-      const result = await env.AI.run(usedModel, {
-        messages: prompt,
-        max_tokens: 500,
-        temperature: 0.35
-      });
+      const result = await env.AI.run(usedModel, { messages: prompt, max_tokens: 500, temperature: 0.35 });
       reply = typeof result?.response === "string" ? result.response.trim() : "";
       if (!reply) throw new Error("Workers AI returned an empty response");
     }
+    if (!reply) throw new Error("No conversational AI provider returned a response");
     return json({ reply, model: usedModel });
   } catch (error) {
     console.error("Rapiflix assistant inference failed", {
       errorName: error instanceof Error ? error.name : "UnknownError",
       errorMessage: error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500),
-      model: env.GEMINI_API_KEY ? "gemini-3.8-flash" : "@cf/meta/llama-3.1-8b-instruct-fp8"
+      model: env.GEMINI_API_KEY ? "gemini-3.8-flash (Workers AI fallback attempted)" : "@cf/meta/llama-3.1-8b-instruct-fp8"
     });
     return json({ error: "The AI service is temporarily unavailable. Please check the Function logs and try again." }, 502);
   }
