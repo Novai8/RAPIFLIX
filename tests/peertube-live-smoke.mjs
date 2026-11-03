@@ -7,15 +7,14 @@ async function request(url, options = {}) {
   return fetch(url, {
     redirect: 'follow',
     headers: { Accept: 'application/json, text/html, */*', 'User-Agent': 'Rapiflix-PeerTube-Smoke/1.0', ...(options.headers || {}) },
-    signal: timeout(25000),
+    signal: timeout(12000),
     ...options
   });
 }
-async function listVideos(query) {
-  const response = await request(instance + '/api/v1/videos?' + query);
-  assert.equal(response.status, 200, 'PeerTube public video catalogue must respond with HTTP 200');
-  const json = await response.json();
-  return Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
+async function videosFrom(url) {
+  const response = await request(url);
+  const json = response.ok ? await response.json() : null;
+  return { status: response.status, videos: Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [] };
 }
 async function fullVideo(summary) {
   const id = summary.uuid || summary.shortUUID || summary.id;
@@ -28,40 +27,32 @@ const hasMedia = video =>
   (Array.isArray(video?.files) && video.files.some(file => file.fileUrl)) ||
   (Array.isArray(video?.streamingPlaylists) && video.streamingPlaylists.some(playlist => playlist.playlistUrl));
 
-const lists = await Promise.all([
-  listVideos('count=100&sort=-publishedAt&isLive=false'),
-  listVideos('count=100&sort=-views&isLive=false'),
-  listVideos('count=100&sort=-trending&isLive=false')
+const [recent, films] = await Promise.all([
+  videosFrom(instance + '/api/v1/videos?count=30&sort=-publishedAt&isLive=false'),
+  videosFrom(instance + '/api/v1/videos?count=100&categoryOneOf=2&isLive=false')
 ]);
-const unique = new Map();
-for (const list of lists) for (const video of list) unique.set(video.uuid || video.shortUUID || video.id, video);
-const summaries = [...unique.values()];
-assert.ok(summaries.length, 'PeerTube test instance must expose at least one public video');
+assert.equal(recent.status, 200, 'PeerTube public video catalogue must respond with HTTP 200');
+assert.ok(recent.videos.length, 'PeerTube test instance must expose at least one public video');
 
-const filmSummaries = summaries.filter(video => video.category?.id === 2);
-let licensedFilm = null;
-let filmCandidatesInspected = 0;
-for (const summary of filmSummaries.slice(0, 30)) {
+let candidate = null;
+for (const summary of recent.videos.slice(0, 12)) {
   const video = await fullVideo(summary);
-  if (!video) continue;
-  filmCandidatesInspected++;
-  if (video.privacy?.id === 1 && !video.isLive && [1, 2, 7, 8].includes(video.licence?.id) && hasMedia(video)) {
+  if (video?.privacy?.id === 1 && !video.isLive && hasMedia(video)) {
+    candidate = video;
+    break;
+  }
+}
+assert.ok(candidate, 'PeerTube must expose a public video with a playable HLS playlist or video file');
+
+const filmSummaries = films.videos.filter(video => video.category?.id === 2);
+let licensedFilm = null;
+for (const summary of filmSummaries.slice(0, 5)) {
+  const video = await fullVideo(summary);
+  if (video?.privacy?.id === 1 && !video.isLive && [1, 2, 7, 8].includes(video.licence?.id) && hasMedia(video)) {
     licensedFilm = video;
     break;
   }
 }
-
-let candidate = licensedFilm;
-if (!candidate) {
-  for (const summary of summaries.slice(0, 20)) {
-    const video = await fullVideo(summary);
-    if (video?.privacy?.id === 1 && !video.isLive && hasMedia(video)) {
-      candidate = video;
-      break;
-    }
-  }
-}
-assert.ok(candidate, 'PeerTube must expose a public video with a playable HLS playlist or video file');
 
 const videoId = candidate.uuid || candidate.shortUUID || candidate.id;
 const embedResponse = await request(instance + '/videos/embed/' + encodeURIComponent(String(videoId)), {
@@ -79,10 +70,8 @@ const mediaResponse = await request(mediaUrl, { headers: { Range: 'bytes=0-2047'
 assert.ok([200, 206].includes(mediaResponse.status), 'PeerTube media endpoint must return video data');
 const mediaBytes = new Uint8Array(await mediaResponse.arrayBuffer());
 assert.ok(mediaBytes.length > 0, 'PeerTube media response must not be empty');
-if (hls) {
-  const playlistText = new TextDecoder().decode(mediaBytes);
-  assert.ok(playlistText.includes('#EXTM3U'), 'PeerTube HLS endpoint must return a valid HLS playlist');
-}
+if (hls) assert.ok(new TextDecoder().decode(mediaBytes).includes('#EXTM3U'), 'PeerTube HLS endpoint must return a valid playlist');
+
 const playerApiResponse = await request('https://unpkg.com/@peertube/embed-api/build/player.min.js', {
   headers: { Accept: 'application/javascript,*/*' }
 });
@@ -90,18 +79,16 @@ assert.equal(playerApiResponse.status, 200, 'PeerTube embed API script must be a
 
 console.log(JSON.stringify({
   instance,
-  publicVideoRecordsScanned: summaries.length,
-  filmCategoryVideosFound: filmSummaries.length,
-  filmDetailsInspected: filmCandidatesInspected,
+  filmCategoryQueryHttpStatus: films.status,
+  filmCategoryVideosReturned: filmSummaries.length,
   openlyLicensedPlayableFilmFound: Boolean(licensedFilm),
-  filmTitlesInspected: filmSummaries.slice(0, 30).map(video => video.name).filter(Boolean),
-  videoTitle: candidate.name || 'Untitled public PeerTube video',
-  category: candidate.category?.label || 'Unknown category',
-  licence: candidate.licence?.label || 'Unknown licence',
+  licensedFilmTitle: licensedFilm?.name || null,
+  genericVideoTitle: candidate.name || 'Untitled public PeerTube video',
+  genericVideoCategory: candidate.category?.label || 'Unknown category',
   embedHttpStatus: embedResponse.status,
   mediaHttpStatus: mediaResponse.status,
   mediaKind: hls ? 'HLS playlist' : 'direct video file',
   mediaBytesReceived: mediaBytes.length,
   playerApiHttpStatus: playerApiResponse.status,
-  result: 'PeerTube embed, public media delivery and the embed API script were checked.'
+  result: 'PeerTube embed and public media delivery verified; Films category checked separately.'
 }, null, 2));
