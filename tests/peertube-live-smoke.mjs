@@ -11,9 +11,9 @@ async function request(url, options = {}) {
     ...options
   });
 }
-async function listVideos(url) {
-  const response = await request(url);
-  assert.equal(response.status, 200, 'PeerTube video catalogue must respond with HTTP 200');
+async function listVideos(query) {
+  const response = await request(instance + '/api/v1/videos?' + query);
+  assert.equal(response.status, 200, 'PeerTube public video catalogue must respond with HTTP 200');
   const json = await response.json();
   return Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
 }
@@ -28,25 +28,32 @@ const hasMedia = video =>
   (Array.isArray(video?.files) && video.files.some(file => file.fileUrl)) ||
   (Array.isArray(video?.streamingPlaylists) && video.streamingPlaylists.some(playlist => playlist.playlistUrl));
 
-const filmSummaries = await listVideos(instance + '/api/v1/videos?count=100&sort=-publishedAt&isLive=false&privacyOneOf=1&categoryOneOf=2');
+const lists = await Promise.all([
+  listVideos('count=100&sort=-publishedAt&isLive=false'),
+  listVideos('count=100&sort=-views&isLive=false'),
+  listVideos('count=100&sort=-trending&isLive=false')
+]);
+const unique = new Map();
+for (const list of lists) for (const video of list) unique.set(video.uuid || video.shortUUID || video.id, video);
+const summaries = [...unique.values()];
+assert.ok(summaries.length, 'PeerTube test instance must expose at least one public video');
+
+const filmSummaries = summaries.filter(video => video.category?.id === 2);
 let licensedFilm = null;
 let filmCandidatesInspected = 0;
-for (const summary of filmSummaries.slice(0, 20)) {
+for (const summary of filmSummaries.slice(0, 30)) {
   const video = await fullVideo(summary);
   if (!video) continue;
   filmCandidatesInspected++;
-  const openLicence = [1, 2, 7, 8].includes(video.licence?.id);
-  if (video.privacy?.id === 1 && !video.isLive && openLicence && hasMedia(video)) {
+  if (video.privacy?.id === 1 && !video.isLive && [1, 2, 7, 8].includes(video.licence?.id) && hasMedia(video)) {
     licensedFilm = video;
     break;
   }
 }
 
-const summaries = await listVideos(instance + '/api/v1/videos?count=30&sort=-publishedAt&isLive=false');
-assert.ok(summaries.length, 'PeerTube test instance must expose at least one public video');
 let candidate = licensedFilm;
 if (!candidate) {
-  for (const summary of summaries.slice(0, 12)) {
+  for (const summary of summaries.slice(0, 20)) {
     const video = await fullVideo(summary);
     if (video?.privacy?.id === 1 && !video.isLive && hasMedia(video)) {
       candidate = video;
@@ -83,9 +90,11 @@ assert.equal(playerApiResponse.status, 200, 'PeerTube embed API script must be a
 
 console.log(JSON.stringify({
   instance,
-  publicFilmCategoryResults: filmSummaries.length,
+  publicVideoRecordsScanned: summaries.length,
+  filmCategoryVideosFound: filmSummaries.length,
   filmDetailsInspected: filmCandidatesInspected,
   openlyLicensedPlayableFilmFound: Boolean(licensedFilm),
+  filmTitlesInspected: filmSummaries.slice(0, 30).map(video => video.name).filter(Boolean),
   videoTitle: candidate.name || 'Untitled public PeerTube video',
   category: candidate.category?.label || 'Unknown category',
   licence: candidate.licence?.label || 'Unknown licence',
