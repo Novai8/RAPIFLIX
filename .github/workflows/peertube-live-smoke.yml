@@ -1,0 +1,24 @@
+name: Rapiflix PeerTube live smoke test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tests/peertube-live-smoke.mjs"
+      - ".github/workflows/peertube-live-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  peertube-live-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check PeerTube public embed and media delivery
+        run: node tests/peertube-live-smoke.mjs
