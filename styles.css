@@ -86,3 +86,5 @@ html[data-theme=light]{--bg:#f4f1e9;--panel:#fffdf8;--panel-2:#ebe7dc;--text:#19
 @media(max-width:1100px){.site-header{gap:14px;padding-left:20px;padding-right:20px}.main-nav{gap:12px;font-size:12px}.main-nav a[data-nav="new"]{font-size:11px}}
 @media(max-width:800px){.main-nav{gap:10px}.main-nav a[data-nav="new"]{font-size:11px}}
 @media(max-width:620px){.main-nav a[data-nav="new"]{font-size:13px}.new-release-shelf{margin-top:30px}.new-release-shelf .rail-head strong{font-size:25px}}
+
+.player-stage .peer-tube-status{position:absolute;z-index:5;left:14px;right:14px;bottom:14px;padding:9px 13px;border:1px solid rgba(199,255,67,.24);border-radius:10px;background:rgba(5,7,13,.84);color:#dce8f2;text-align:center;font:500 12px 'DM Sans',sans-serif;pointer-events:none;backdrop-filter:blur(10px)}
