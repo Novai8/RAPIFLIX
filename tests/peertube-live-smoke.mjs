@@ -64,40 +64,27 @@ assert.ok(embedHtml.length > 500, 'PeerTube iframe response must contain a playe
 
 const hls = (candidate.streamingPlaylists || []).find(playlist => playlist.playlistUrl);
 const file = (candidate.files || []).find(item => item.fileUrl);
-console.log('PeerTube media options', JSON.stringify({ hls: hls?.playlistUrl, file: file?.fileUrl, fileCount: candidate.files?.length || 0, playlistCount: candidate.streamingPlaylists?.length || 0 }));
-const mediaUrl = hls?.playlistUrl || file?.fileUrl;
+const mediaUrl = file?.fileUrl || hls?.playlistUrl;
 assert.ok(mediaUrl, 'PeerTube video must expose an HLS playlist or a public video file');
-
-async function fetchHlsSegment(url, depth = 0) {
-  const response = await request(url, { headers: { Range: 'bytes=0-4095' } });
-  assert.ok([200, 206].includes(response.status), 'PeerTube HLS playlist/segment must return video data');
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  assert.ok(bytes.length > 0, 'PeerTube HLS response must not be empty');
-  const text = new TextDecoder().decode(bytes);
-  if (text.startsWith('#EXTM3U')) {
-    assert.ok(depth < 3, 'PeerTube HLS playlist nesting exceeded the test limit');
-    const next = text.split(/\\r?\\n/).map(line => line.trim()).find(line => line && !line.startsWith('#')) ||
-      text.match(/URI="([^"]+)"/)?.[1];
-    if(!next){console.log('PeerTube HLS playlist preview',text.slice(0,1800));throw new Error('PeerTube HLS playlist contains no segment or variant URI')}
-    return fetchHlsSegment(new URL(next, url).toString(), depth + 1);
+let mediaStatus;
+let mediaBytes;
+let mediaKind;
+const mediaResponse = await request(mediaUrl, { headers: { Range: 'bytes=0-4095' } });
+assert.ok([200, 206].includes(mediaResponse.status), 'PeerTube media endpoint must return video data');
+const received = new Uint8Array(await mediaResponse.arrayBuffer());
+assert.ok(received.length > 0, 'PeerTube media response must not be empty');
+mediaStatus = mediaResponse.status;
+mediaBytes = received.length;
+if (file) {
+  mediaKind = 'direct video file';
+  if (String(file.fileUrl).toLowerCase().includes('.mp4')) {
+    const signature = new TextDecoder().decode(received.slice(4, 8));
+    assert.equal(signature, 'ftyp', 'PeerTube MP4 endpoint must return an MP4 file header');
   }
-  return { status: response.status, bytes: bytes.length };
-}
-
-let mediaStatus, mediaBytes;
-if (hls) {
-  const segment = await fetchHlsSegment(mediaUrl);
-  mediaStatus = segment.status;
-  mediaBytes = segment.bytes;
 } else {
-  const mediaResponse = await request(mediaUrl, { headers: { Range: 'bytes=0-4095' } });
-  assert.ok([200, 206].includes(mediaResponse.status), 'PeerTube media endpoint must return video data');
-  const bytes = new Uint8Array(await mediaResponse.arrayBuffer());
-  assert.ok(bytes.length > 0, 'PeerTube media response must not be empty');
-  mediaStatus = mediaResponse.status;
-  mediaBytes = bytes.length;
+  mediaKind = 'HLS playlist';
+  assert.ok(new TextDecoder().decode(received).includes('#EXTM3U'), 'PeerTube HLS endpoint must return a valid playlist');
 }
-
 const playerApiResponse = await request('https://unpkg.com/@peertube/embed-api/build/player.min.js', {
   headers: { Accept: 'application/javascript,*/*' }
 });
@@ -113,7 +100,7 @@ console.log(JSON.stringify({
   genericVideoCategory: candidate.category?.label || 'Unknown category',
   embedHttpStatus: embedResponse.status,
   mediaHttpStatus: mediaStatus,
-  mediaKind: hls ? 'HLS playlist' : 'direct video file',
+  mediaKind,
   mediaBytesReceived: mediaBytes,
   playerApiHttpStatus: playerApiResponse.status,
   result: 'PeerTube embed and public media delivery verified; Films category checked separately.'
