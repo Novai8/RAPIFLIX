@@ -1,0 +1,145 @@
+/* ==========================================================================
+   Rapiflix — Premium redesign layer
+   Loads after styles.css. Additive: elevates the existing design system
+   (dark charcoal, acid-lime accent, Space Grotesk/DM Sans) without breaking
+   any existing view. Override layer only.
+   ========================================================================== */
+
+/* ---------- 0. Skip link + focus polish ---------- */
+.skip-link{position:fixed;z-index:120;top:12px;left:12px;transform:translateY(-64px);padding:10px 16px;border-radius:12px;background:var(--accent);color:#0b100b;font:600 13px 'DM Sans';text-decoration:none;transition:transform .25s}
+.skip-link:focus{transform:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+
+/* ---------- 1. Sticky glass header ---------- */
+.site-header{position:sticky;top:0;z-index:40;border-bottom:1px solid transparent;transition:background .3s,border-color .3s}
+.site-header.is-scrolled{background:rgba(7,10,18,.82);border-bottom-color:var(--line)}
+@supports (backdrop-filter: blur(18px)){
+  .site-header.is-scrolled{backdrop-filter:blur(18px)}
+}
+
+/* ---------- 2. Cinematic hero backdrop ----------
+   Wires the previously unused --hero-image variable into a real
+   atmospheric layer with readability gradients (never a flat dark veil). */
+.hero{position:relative;isolation:isolate}
+.hero-backdrop{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:var(--hero-image) center 22%/cover no-repeat;
+  opacity:.34;filter:saturate(1.15) contrast(1.04);
+  animation:hero-drift 26s ease-in-out infinite alternate;
+}
+.hero-backdrop-veil{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 18% 30%, transparent 20%, rgba(7,10,18,.66) 72%, #070a12 100%),
+    linear-gradient(180deg, rgba(7,10,18,.42) 0%, transparent 30%, transparent 62%, #070a12 96%);
+}
+@keyframes hero-drift{from{transform:scale(1.04) translateX(-1.2%)}to{transform:scale(1.1) translateX(1.4%)}}
+.hero-copy,.hero-feature{z-index:2}
+.hero-backdrop,.hero-backdrop-veil{transform:translate3d(calc(var(--mouse-x,0)*-14px),calc(var(--mouse-y,0)*-10px),0);transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+
+/* ---------- 3. Card rating pill + polish ---------- */
+.card-rating{
+  position:absolute;z-index:3;top:12px;right:12px;
+  padding:4px 9px;border-radius:99px;
+  background:rgba(5,8,14,.78);color:var(--accent);
+  font:700 11px 'Space Grotesk';letter-spacing:.04em;
+  backdrop-filter:blur(6px);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 34%,transparent);
+}
+.poster-tile{transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s ease}
+.movie-card:hover .poster-tile{transform:translateY(-6px) scale(1.015);box-shadow:0 30px 60px rgba(0,0,0,.42),0 0 0 1px color-mix(in srgb,var(--accent) 30%,transparent)}
+
+/* ---------- 4. Trending poster ring (home) ---------- */
+.trend-ring-zone{margin-top:96px}
+.trend-ring-zone .rail-head{margin-top:0;padding-top:18px}
+.trend-ring-zone .rail-head strong{display:block;margin-top:7px;color:var(--text);font:600 clamp(22px,3vw,38px) 'Space Grotesk';letter-spacing:-.05em}
+.ring-hint{color:var(--muted);font:11px 'Space Grotesk';letter-spacing:.14em;text-transform:uppercase}
+.trend-ring-scene{
+  position:relative;height:clamp(360px,52vw,560px);margin-top:14px;
+  perspective:1300px;touch-action:pan-y;
+  border-block:1px solid var(--line);
+  background:radial-gradient(60% 80% at 50% 50%, rgba(199,255,67,.045), transparent 70%);
+  overflow:hidden;border-radius:26px;
+}
+.trend-ring{position:absolute;left:50%;top:50%;transform-style:preserve-3d;will-change:transform}
+.ring-poster{
+  position:absolute;left:50%;top:50%;
+  width:var(--ring-pw,150px);aspect-ratio:2/3;
+  border-radius:14px;overflow:hidden;background:#0c1018;
+  backface-visibility:hidden;
+  box-shadow:0 18px 44px rgba(0,0,0,.5);
+  transition:filter .4s ease,opacity .4s ease,box-shadow .4s ease;
+  filter:brightness(.52) saturate(.72);opacity:.85;
+}
+.ring-poster img{width:100%;height:100%;object-fit:cover;display:block}
+.ring-poster:after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);pointer-events:none}
+.ring-poster.front{
+  filter:brightness(1.05) saturate(1);opacity:1;z-index:5;
+  box-shadow:0 26px 70px rgba(0,0,0,.65),0 0 0 1px color-mix(in srgb,var(--accent) 55%,transparent),0 0 46px var(--accent-soft);
+}
+.ring-poster.front:after{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent)}
+.ring-caption{display:flex;align-items:baseline;gap:14px;margin-top:18px}
+.ring-caption strong{font:600 clamp(20px,2.6vw,30px) 'Space Grotesk';letter-spacing:-.03em}
+.ring-caption span{color:var(--muted);font:12px 'Space Grotesk';letter-spacing:.1em}
+@media(max-width:620px){
+  .trend-ring-zone{margin-top:44px}
+  .trend-ring-scene{height:64vw;border-radius:16px}
+  .ring-hint{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .trend-ring{transform:rotateX(0) rotateY(0)!important}
+  .hero-backdrop{animation:none}
+}
+
+/* ---------- 5. Loader: 3D film reel ---------- */
+.loader{perspective:1000px;gap:26px}
+.loader .reel-scene{perspective:900px}
+.loader .reel{
+  position:relative;width:94px;height:141px;
+  transform-style:preserve-3d;will-change:transform;
+}
+.loader .reel .reel-panel{
+  position:absolute;inset:0;border-radius:9px;overflow:hidden;
+  backface-visibility:hidden;background:#0c1018;
+  box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 0 0 1px rgba(238,241,234,.1);
+}
+.loader .reel .reel-panel img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.75) saturate(.85)}
+.loader.unload{opacity:0;pointer-events:none;transition:opacity .62s ease}
+.loader.unload .loader-wordmark,.loader.unload .loader-line,.loader.unload p,.loader.unload small{opacity:0;transition:opacity .25s}
+.loader-grid,.loader-stars{opacity:.14}
+
+/* ---------- 6. Viewfinder cursor ----------
+   A camera-focus reticle: corner brackets + focus dot + contextual label.
+   Desktop-only (pointer:fine + hover + motion allowed). The native cursor
+   stays untouched unless JS confirms the reticle is running. */
+.focus-cursor{
+  position:fixed;z-index:90;top:0;left:0;
+  width:44px;height:44px;margin:-22px 0 0 -22px;
+  pointer-events:none;display:none;
+  transition:width .28s cubic-bezier(.2,.8,.2,1),height .28s cubic-bezier(.2,.8,.2,1),margin .28s cubic-bezier(.2,.8,.2,1);
+  will-change:transform;
+}
+html.cursor-on .focus-cursor{display:block}
+.fc-b{position:absolute;width:11px;height:11px;border:0 solid var(--accent);opacity:.9;transition:width .28s cubic-bezier(.2,.8,.2,1),height .28s cubic-bezier(.2,.8,.2,1),border-width .28s}
+.fc-tl{top:0;left:0;border-top-width:1.5px;border-left-width:1.5px;border-top-left-radius:6px}
+.fc-tr{top:0;right:0;border-top-width:1.5px;border-right-width:1.5px;border-top-right-radius:6px}
+.fc-bl{bottom:0;left:0;border-bottom-width:1.5px;border-left-width:1.5px;border-bottom-left-radius:6px}
+.fc-br{bottom:0;right:0;border-bottom-width:1.5px;border-right-width:1.5px;border-bottom-right-radius:6px}
+.fc-dot{position:absolute;left:50%;top:50%;width:3px;height:3px;margin:-1.5px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+.fc-label{
+  position:absolute;left:50%;top:calc(100% + 10px);transform:translateX(-50%) translateY(4px);
+  padding:4px 9px;border-radius:99px;background:var(--accent);color:#0b100b;
+  font:600 9px 'Space Grotesk';letter-spacing:.22em;white-space:nowrap;
+  opacity:0;transition:opacity .2s,transform .2s;
+}
+.focus-cursor.is-hover{width:76px;height:76px;margin:-38px 0 0 -38px}
+.focus-cursor.is-hover .fc-b{width:15px;height:15px}
+.focus-cursor.is-hover .fc-label{opacity:1;transform:translateX(-50%) translateY(0)}
+.focus-cursor.is-press{width:30px;height:30px;margin:-15px 0 0 -15px}
+.focus-cursor.is-text .fc-b,.focus-cursor.is-text .fc-label{opacity:0}
+html.cursor-on,html.cursor-on *{cursor:none!important}
+html.cursor-on input,html.cursor-on textarea,html.cursor-on select,html.cursor-on [contenteditable]{cursor:text!important}
+@media(hover:none),(pointer:coarse),(prefers-reduced-motion:reduce){
+  html.cursor-on,html.cursor-on *{cursor:auto!important}
+  .focus-cursor{display:none!important}
+}
