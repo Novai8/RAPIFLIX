@@ -1,8 +1,10 @@
+/* Rapiflix pointer layer: projector beam, aperture cursor, frame tilt and magnetic buttons. */
 (() => {
   "use strict";
-  if (window.__rapiflixCursorV2) return;
-  window.__rapiflixCursorV2 = true;
+  if (window.__rapiflixProjectorV1) return;
+  window.__rapiflixProjectorV1 = true;
 
+  const root = document.documentElement;
   const dot = document.querySelector(".cursor-dot");
   const ring = document.querySelector(".cursor-ring");
   const label = ring?.querySelector(".cursor-label") || null;
@@ -11,21 +13,25 @@
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   let enabled = false;
-  let x = -200, y = -200, ringX = x, ringY = y, frame = 0;
+  let x = -240, y = -240, ringX = x, ringY = y, frame = 0;
   let hovered = null, tilted = null, magnetic = null;
 
   const INTERACTIVE = "a,button,select,[role='button'],[data-link]";
   const TILT = ".card";
   const MAGNETIC = ".btn-accent,.rail-btn";
 
-  const readLabel = (target) => {
+  function readLabel(target) {
     if (!target) return "";
     if (target.matches(".card-btn") || target.closest(".card")) return "Open";
     if (target.matches(".btn-accent")) return target.closest(".stage-tools") ? "Load" : "Open";
     if (target.matches(".rail-btn")) return "Scroll";
     if (target.matches("select")) return "";
+    if (target.closest("#searchTrigger")) return "Search";
+    if (target.closest("#themeToggle,#paletteToggle")) return "Stock";
+    if (target.closest(".search-close,[data-search-close]")) return "Close";
+    if (target.matches(".icon-btn,.menu-btn")) return "Menu";
     return "Open";
-  };
+  }
 
   function hiddenByOverlay() {
     return Boolean(document.querySelector("#searchOverlay:not([hidden]), #mobileNav:not([hidden])"));
@@ -51,10 +57,18 @@
     frame = 0;
     if (dot) dot.style.transform = `translate3d(${x}px,${y}px,0)`;
     if (ring) {
-      ringX += (x - ringX) * 0.24;
-      ringY += (y - ringY) * 0.24;
+      ringX += (x - ringX) * 0.22;
+      ringY += (y - ringY) * 0.22;
       ring.style.transform = `translate3d(${ringX}px,${ringY}px,0)`;
       if (Math.abs(x - ringX) + Math.abs(y - ringY) > 0.4) frame = requestAnimationFrame(paint);
+    }
+    /* One write per frame: the projector beam and hero parallax read these. */
+    root.style.setProperty("--mx", `${x.toFixed(0)}px`);
+    root.style.setProperty("--my", `${y.toFixed(0)}px`);
+    const hero = document.querySelector("[data-hero]");
+    if (hero) {
+      hero.style.setProperty("--hx", `${((x / window.innerWidth - 0.5) * -16).toFixed(1)}`);
+      hero.style.setProperty("--hy", `${((y / window.innerHeight - 0.5) * -10).toFixed(1)}`);
     }
   }
 
@@ -84,8 +98,8 @@
     const px = (event.clientX - rect.left) / rect.width;
     const py = (event.clientY - rect.top) / rect.height;
     tilted = card;
-    frameEl.style.setProperty("--rx", `${((0.5 - py) * 6).toFixed(2)}deg`);
-    frameEl.style.setProperty("--ry", `${((px - 0.5) * 8).toFixed(2)}deg`);
+    frameEl.style.setProperty("--rx", `${((0.5 - py) * 5).toFixed(2)}deg`);
+    frameEl.style.setProperty("--ry", `${((px - 0.5) * 7).toFixed(2)}deg`);
   }
 
   function clearCard() {
@@ -157,10 +171,13 @@
     document.removeEventListener("pointerout", onOut);
     window.removeEventListener("blur", hide);
     hide();
+    root.style.removeProperty("--mx");
+    root.style.removeProperty("--my");
     if (frame) { cancelAnimationFrame(frame); frame = 0; }
   }
 
   function sync() {
+    /* Animate on fine pointers; a coarse pointer gets the touch UI and no beam. */
     if (fine.matches && !reduce.matches) start();
     else stop();
   }

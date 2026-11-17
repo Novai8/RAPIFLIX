@@ -9,7 +9,8 @@
 
   /* ---------- theme + palette ---------- */
   const THEMES = ["dark", "light"];
-  const PALETTES = ["lime", "coral", "cyan", "violet"];
+  const PALETTES = ["vermilion", "cyanotype", "chartreuse", "ultraviolet"];
+  const STOCKS = { vermilion: "Vermilion", cyanotype: "Cyanotype", chartreuse: "Chartreuse", ultraviolet: "Ultraviolet" };
 
   function read(key, fallback) {
     try { return localStorage.getItem(key) ?? fallback; } catch (_) { return fallback; }
@@ -20,32 +21,35 @@
 
   const savedTheme = read("rapiflix-theme", "dark");
   document.documentElement.dataset.theme = THEMES.includes(savedTheme) ? savedTheme : "dark";
-  const savedPalette = read("rapiflix-palette", "lime");
-  document.documentElement.dataset.palette = PALETTES.includes(savedPalette) ? savedPalette : "lime";
+  const savedPalette = read("rapiflix-palette", "vermilion");
+  document.documentElement.dataset.palette = PALETTES.includes(savedPalette) ? savedPalette : "vermilion";
 
-  /* ---------- boot ---------- */
+  /* ---------- boot: academy leader ---------- */
   const boot = $("#loader");
   if (boot) {
     const fill = $("#loaderFill");
     const percent = $("#loaderPercent");
+    const count = $("#loaderCount");
     const status = $("#loaderStatus");
-    const lines = ["Tuning the projector", "Loading the reel", "Ready"];
+    const lines = ["Threading the projector", "Cueing the leader", "Roll film"];
     let seen = false;
     try { seen = sessionStorage.getItem("rapiflix-booted") === "1"; } catch (_) {}
-    const duration = reduce || seen ? 120 : 420;
+    const duration = reduce ? 40 : seen ? 260 : 1150;
     const start = performance.now();
 
     const tick = (now) => {
       const progress = Math.min(1, (now - start) / duration);
-      if (fill) fill.style.width = `${Math.round(progress * 100)}%`;
-      if (percent) percent.textContent = `${String(Math.round(progress * 100)).padStart(2, "0")}%`;
+      const value = Math.round(progress * 100);
+      if (fill) fill.style.width = `${value}%`;
+      if (percent) percent.textContent = `${String(value).padStart(2, "0")}%`;
+      if (count) count.textContent = String(3 - Math.min(2, Math.floor(progress * 3)));
       if (status) status.textContent = lines[Math.min(lines.length - 1, Math.floor(progress * 3))];
       if (progress < 1) {
         requestAnimationFrame(tick);
       } else {
         try { sessionStorage.setItem("rapiflix-booted", "1"); } catch (_) {}
         boot.classList.add("is-done");
-        setTimeout(() => boot.remove(), reduce ? 20 : 620);
+        setTimeout(() => boot.remove(), reduce ? 20 : 760);
       }
     };
     requestAnimationFrame(tick);
@@ -63,19 +67,20 @@
     document.documentElement.dataset.theme = next;
     write("rapiflix-theme", next);
     const meta = $('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", next === "light" ? "#f5f3ec" : "#08090c");
+    if (meta) meta.setAttribute("content", next === "light" ? "#efe7d8" : "#100e0c");
   });
 
   const paletteToggle = $("#paletteToggle");
   paletteToggle?.addEventListener("click", () => {
-    const current = document.documentElement.dataset.palette || "lime";
+    const current = document.documentElement.dataset.palette || "vermilion";
     const next = PALETTES[(PALETTES.indexOf(current) + 1) % PALETTES.length];
     document.documentElement.dataset.palette = next;
     write("rapiflix-palette", next);
     paletteToggle.animate(
-      [{ transform: "rotate(0) scale(1)" }, { transform: "rotate(180deg) scale(1.15)" }, { transform: "rotate(360deg) scale(1)" }],
-      { duration: 460, easing: "cubic-bezier(.2,.8,.2,1)" }
+      [{ transform: "rotate(0) scale(1)" }, { transform: "rotate(-16deg) scale(1.08)" }, { transform: "rotate(0) scale(1)" }],
+      { duration: 380, easing: "cubic-bezier(.2,.8,.2,1)" }
     );
+    window.RapiflixUI?.toast?.(`${STOCKS[next]} film stock`);
   });
 
   /* ---------- scroll lock + focus trap ---------- */

@@ -17,11 +17,12 @@ const [html, app, routes, providers, cursor, css, redirects, pageRoutes, streams
 
 /* ---------- shell ---------- */
 
-test('the cinematic shell mounts the app, boot loader, search dialog and palette control', () => {
+test('the reel-archive shell mounts the app, academy leader, search dialog and stock control', () => {
   assert.match(html, /<main id="app" tabindex="-1">/);
   assert.match(html, /id="loader"/);
   assert.match(html, /id="loaderFill"/);
   assert.match(html, /id="loaderPercent"/);
+  assert.match(html, /id="loaderCount"/);
   assert.match(html, /id="paletteToggle"/);
   assert.match(html, /id="themeToggle"/);
   assert.match(html, /id="searchOverlay"[\s\S]*hidden/);
@@ -29,8 +30,20 @@ test('the cinematic shell mounts the app, boot loader, search dialog and palette
   assert.match(html, /id="mobileNav"/);
   assert.match(html, /class="skip-link" href="#app"/);
   assert.match(html, /<noscript>/);
-  assert.match(html, /data-build="rapiflix-cinematic-v1"/);
-  assert.match(html, /styles\.css\?v=20261117-cinematic-v1/);
+  assert.match(html, /data-build="rapiflix-reel-archive-v2"/);
+  assert.match(html, /styles\.css\?v=20261117-reel-v2/);
+  assert.match(html, /class="brand-mark"[\s\S]*<svg/);
+  assert.match(html, /class="boot-leader"/);
+  assert.match(html, /class="ambient-beam"/);
+});
+
+test('the archive sets its own type: serif display, grotesque UI and mono data', () => {
+  assert.match(html, /family=Bricolage\+Grotesque/);
+  assert.match(html, /family=Instrument\+Serif/);
+  assert.match(html, /family=JetBrains\+Mono/);
+  assert.match(css, /--font-display:'Instrument Serif'/);
+  assert.match(css, /--font-ui:'Bricolage Grotesque'/);
+  assert.match(css, /--font-mono:'JetBrains Mono'/);
 });
 
 test('scripts load shell first, then providers, app, assistant and cursor', () => {
@@ -38,9 +51,9 @@ test('scripts load shell first, then providers, app, assistant and cursor', () =
     .map((name) => html.indexOf(name));
   assert.ok(order.every((index) => index > -1), 'every script tag is present');
   assert.deepEqual([...order].sort((a, b) => a - b), order);
-  assert.match(html, /routes\.js\?v=20261117-shell-v1/);
-  assert.match(html, /providers\.js\?v=20261117-providers-v1/);
-  assert.match(html, /app\.js\?v=20261117-cinematic-v1/);
+  assert.match(html, /routes\.js\?v=20261117-reel-shell-v2/);
+  assert.match(html, /providers\.js\?v=20261117-reel-providers-v1/);
+  assert.match(html, /app\.js\?v=20261117-reel-v2/);
 });
 
 test('HLS is lazy-loaded instead of blocking the document', () => {
@@ -94,6 +107,9 @@ test('title pages show finance, cast, trailer, save state and TV episode guide',
   assert.match(app, /\["Budget", money\(media\.budget\)\], \["Box office", money\(media\.revenue\)\]/);
   assert.match(app, /class="cast-rail"/);
   assert.match(app, /class="cast-card"/);
+  assert.match(app, /class="cast-mono"/);
+  assert.match(app, /function crewLine\(crew\)/);
+  assert.match(app, /class="card-plate"/);
   assert.match(app, /Watch trailer/);
   assert.doesNotMatch(app, /\.map\(esc\)\.join\(dot\)/);
   assert.match(app, /data-save="\$\{esc\(media\.id\)\}"/);
@@ -172,16 +188,16 @@ test('the /search route renders a full TMDB result page', () => {
 
 /* ---------- shell behaviour ---------- */
 
-test('theme and accent palette persist and the four palettes are token-driven', () => {
-  assert.match(routes, /const PALETTES = \["lime", "coral", "cyan", "violet"\]/);
+test('theme and film-stock accents persist and the four stocks are token-driven', () => {
+  assert.match(routes, /const PALETTES = \["vermilion", "cyanotype", "chartreuse", "ultraviolet"\]/);
   assert.match(routes, /write\("rapiflix-palette", next\)/);
   assert.match(routes, /write\("rapiflix-theme", next\)/);
   assert.match(routes, /document\.documentElement\.dataset\.theme/);
-  assert.match(css, /:root\[data-palette=coral\]/);
-  assert.match(css, /:root\[data-palette=cyan\]/);
-  assert.match(css, /:root\[data-palette=violet\]/);
+  assert.match(css, /:root\[data-palette=cyanotype\]/);
+  assert.match(css, /:root\[data-palette=chartreuse\]/);
+  assert.match(css, /:root\[data-palette=ultraviolet\]/);
   assert.match(css, /html\[data-theme=light\]\{/);
-  assert.match(html, /<html lang="en" data-theme="dark" data-palette="lime">/);
+  assert.match(html, /<html lang="en" data-theme="dark" data-palette="vermilion">/);
 });
 
 test('search dialog and mobile sheet are accessible modal dialogs', () => {
@@ -217,14 +233,14 @@ test('cards tilt and primary buttons magnetise through CSS variables', () => {
 
 test('layout adapts from phone to desktop with a horizontal reel and poster grid', () => {
   assert.match(css, /\.reel-track\{[\s\S]*scroll-snap-type:x mandatory/);
-  assert.match(css, /grid-auto-columns:clamp\(148px,16\.5vw,208px\)/);
+  assert.match(css, /grid-auto-columns:clamp\(150px,16vw,210px\)/);
   assert.match(css, /\.grid\{[\s\S]*auto-fill/);
   assert.match(css, /@media\(min-width:900px\)\{\.grid/);
   assert.match(css, /@media\(max-width:1180px\)/);
   assert.match(css, /@media\(max-width:1000px\)/);
   assert.match(css, /@media\(max-width:860px\)/);
   assert.match(css, /@media\(max-width:680px\)/);
-  assert.match(css, /\.reel-track\{grid-auto-columns:40vw/);
+  assert.match(css, /\.reel-track\{grid-auto-columns:44vw/);
 });
 
 test('motion respects reduced-motion and skeleton loading states exist', () => {

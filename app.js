@@ -381,25 +381,49 @@
   }
 
   /* ---------- components ---------- */
+  const monogram = (text) => String(text || "")
+    .trim().split(/\s+/).filter(Boolean).slice(0, 2)
+    .map((word) => Array.from(word)[0] || "").join("").toUpperCase() || "RF";
+
   function card(item, index = 0) {
     const saved = state.favorites.has(String(item.id));
-    const meta = [item.year || "", typeLabel(item.type)].filter(Boolean).join(" · ");
     return `<article class="card" style="--d:${Math.min(index, 9) * 40}ms">
       <button class="card-btn" type="button" data-open="${esc(item.id)}" data-type="${esc(item.type)}" aria-label="Open ${esc(item.title)}">
         <span class="card-frame">
-          <img src="${esc(img(item.poster))}" alt="" width="300" height="450" loading="lazy" decoding="async">
-          <span class="card-index">${String(index + 1).padStart(2, "0")}</span>
+          ${item.poster
+            ? `<img src="${esc(img(item.poster))}" alt="" width="300" height="450" loading="lazy" decoding="async">`
+            : `<span class="card-plate" aria-hidden="true"><b>${esc(monogram(item.title))}</b><small>No plate on file</small></span>`}
+          <span class="card-sprockets" aria-hidden="true"></span>
+          <span class="card-index">${String(index + 1).padStart(3, "0")}</span>
           ${item.rating > 0 ? `<span class="card-rating">${esc(ratingText(item.rating))}</span>` : ""}
           <span class="card-type">${esc(typeLabel(item.type))}</span>
-          <span class="card-hover" aria-hidden="true">↗</span>
+          <span class="card-hover" aria-hidden="true">Open ↗</span>
         </span>
         <span class="card-body">
           <span class="card-title">${esc(item.title)}</span>
-          <span class="card-meta">${esc(meta)}</span>
+          <span class="card-meta"><b>${esc(item.year || "—")}</b><i>${esc(typeLabel(item.type))}</i></span>
         </span>
       </button>
       <button class="card-save ${saved ? "is-saved" : ""}" type="button" data-save="${esc(item.id)}" aria-pressed="${saved}" aria-label="${saved ? "Remove" : "Save"} ${esc(item.title)}">${saved ? "♥" : "♡"}</button>
     </article>`;
+  }
+
+  function ledger(items, label) {
+    const list = (items || []).slice(0, 5);
+    if (!list.length) return "";
+    return `<ol class="ledger" aria-label="${esc(label || "Catalogue index")}">
+      ${list.map((item, index) => `<li><button type="button" data-open="${esc(item.id)}" data-type="${esc(item.type)}">
+        <span class="ledger-no">${String(index + 1).padStart(2, "0")}</span>
+        <span class="ledger-title">${esc(item.title)}</span>
+        <span class="ledger-meta">${esc(item.year || "—")} · ${esc(ratingText(item.rating))}</span>
+      </button></li>`).join("")}
+    </ol>`;
+  }
+
+  const TICKER = ["Now showing", "Metadata by TMDB", "No ads inserted", "Authorised sources only", "Stay for the story"];
+  function ticker() {
+    const run = TICKER.map((text) => `<span><b>◆</b>${esc(text)}</span>`).join("");
+    return `<div class="ticker" aria-hidden="true"><div class="ticker-track">${run}${run}</div></div>`;
   }
 
   function grid(items) {
@@ -436,7 +460,8 @@
       </div>
       <div class="hero-veil" aria-hidden="true"></div>
       <div class="hero-copy">
-        <p class="kicker">Featured · <span data-hero-kind>${esc(typeLabel(first.type))}</span></p>
+        <p class="hero-folio"><b>Now showing</b><span data-hero-folio>01 / ${String(items.length).padStart(2, "0")}</span></p>
+        <span class="kicker">Featured · <span data-hero-kind>${esc(typeLabel(first.type))}</span></span>
         <h1 class="hero-title" data-hero-title>${esc(first.title)}</h1>
         <p class="hero-meta" data-hero-meta>${esc([first.year || "", ratingText(first.rating), typeLabel(first.type)].filter(Boolean).join(" · "))}</p>
         <p class="hero-overview" data-hero-overview>${esc(first.overview || "No synopsis is available for this title yet.")}</p>
@@ -445,7 +470,11 @@
           <a class="btn btn-ghost" href="${esc(`/title/${first.id}?type=${first.type}`)}" data-link data-hero-details>Details</a>
         </div>
       </div>
-      <div class="hero-side" aria-hidden="true">
+      <div class="hero-side">
+        <span class="hero-ghost" data-hero-ghost aria-hidden="true">01</span>
+        <div class="hero-ticks" data-hero-ticks aria-hidden="true">
+          ${items.map((_, index) => `<i class="${index === 0 ? "is-on" : ""}"></i>`).join("")}
+        </div>
         <div class="hero-poster is-on"><img data-hero-poster="a" src="${esc(img(first.poster, "w500"))}" alt="" width="500" height="750" loading="eager" decoding="async"></div>
         ${items[1] ? `<div class="hero-poster is-off"><img data-hero-poster="b" src="${esc(img(items[1].poster, "w500"))}" alt="" width="500" height="750" loading="lazy" decoding="async"></div>` : ""}
       </div>
@@ -468,13 +497,15 @@
       : "";
 
     return `${heroMarkup(fallbackFeatured)}
+      ${ticker()}
       <div class="page">
         ${notice}
         <div class="page-head" style="border-bottom:0;padding-bottom:0">
-          <span class="kicker">The catalogue</span>
-          <h2 class="h2" style="margin-top:8px;max-width:22ch">Pick a mood.<br>Press play.</h2>
+          <span class="kicker">The archive · Vol. 01</span>
+          <h2 class="h2" style="margin-top:12px;max-width:24ch">Pick a mood.<br><em>Press play.</em></h2>
+          <p>Five shelves of films, series and animation, pulled live from TMDB and framed like a contact sheet.</p>
         </div>
-        ${sections || emptyState("Nothing to show yet", "The catalogue came back empty. Try reloading in a moment.")}
+        ${sections || emptyState("Nothing to show yet", "The archive came back empty. Try reloading in a moment.")}
         <div class="notice">
           <div>
             <h2>No injected ads. No forced redirects.</h2>
@@ -490,10 +521,10 @@
     const genre = r.genre || "";
     const genreEntry = GENRES.find((entry) => entry.slug === genre);
     const labels = {
-      movies: { kicker: "RAPIFLIX / MOVIES", title: genreEntry ? `${genreEntry.label} films` : "The feature reel", body: "Features from 1995 onwards, ordered by popularity. Filter by genre or switch to the highest-rated cut." },
-      series: { kicker: "RAPIFLIX / SERIES", title: "TV series", body: "Every story that needs more than two hours. Browse popular series and load more as you go." },
-      anime: { kicker: "RAPIFLIX / ANIME", title: "Anime films", body: "Japanese animated features, kept in their own shelf so they never get buried." },
-      new: { kicker: "RAPIFLIX / NEW", title: "New movies & series", body: "Films and series released in the last twelve months, ordered by release date." }
+      movies: { kicker: "Rapiflix / Movies", title: genreEntry ? `${esc(genreEntry.label)} <em>films</em>` : `The feature <em>reel</em>`, body: "Features from 1995 onwards, ordered by popularity. Filter by genre or switch to the highest-rated cut." },
+      series: { kicker: "Rapiflix / Series", title: `Continue the <em>story</em>`, body: "Series and limited runs, ordered by what the archive is watching now. Load more reels as you go." },
+      anime: { kicker: "Rapiflix / Anime", title: `Drawn <em>worlds</em>`, body: "Japanese animated features, kept on their own shelf so they never get buried." },
+      new: { kicker: "Rapiflix / New", title: `Fresh <em>prints</em>`, body: "Films and series released in the last twelve months, newest first." }
     }[r.page];
 
     const tools = r.page === "movies"
@@ -520,10 +551,11 @@
     return `<div class="page listing">
       <div class="page-head">
         <span class="kicker">${esc(labels.kicker)}</span>
-        <h1 class="display">${esc(labels.title)}</h1>
+        <h1 class="display">${labels.title}</h1>
         <p>${esc(labels.body)}</p>
         ${tools}
       </div>
+      ${ledger(feed?.items, `${labels.kicker} index`)}
       ${body}
       ${more}
     </div>`;
@@ -538,10 +570,11 @@
       : "";
     return `<div class="page listing">
       <div class="page-head">
-        <span class="kicker">RAPIFLIX / JUST RELEASED</span>
+        <span class="kicker">Rapiflix / Just released</span>
         <h1 class="display">New movies<br><em>&amp; series.</em></h1>
-        <p>Everything from the last twelve months, newest first. Sourced live from TMDB.</p>
+        <p>Everything from the last twelve months, newest first. Sourced live from TMDB and framed as a contact sheet.</p>
       </div>
+      ${ledger([...movies, ...series], "New releases index")}
       ${movies.length ? `<section class="reel"><div class="reel-head"><div><span class="kicker">Films</span><h2 class="h2">New movies</h2></div><span class="count-note">${movies.length} loaded</span></div>${grid(movies)}</section>` : emptyState("No new films yet", "Recent releases could not be loaded right now.", `<button class="btn btn-ghost" type="button" data-retry>Reload</button>`)}
       ${series.length ? `<section class="reel"><div class="reel-head"><div><span class="kicker">Series</span><h2 class="h2">New series</h2></div><span class="count-note">${series.length} loaded</span></div>${grid(series)}</section>` : ""}
       ${more}
@@ -553,13 +586,27 @@
     const term = result?.term || "";
     return `<div class="page listing">
       <div class="page-head">
-        <span class="kicker">RAPIFLIX / SEARCH</span>
+        <span class="kicker">Rapiflix / Search</span>
         <h1 class="display">${term ? `Results for<br><em>${esc(term)}</em>` : "Find a favourite."}</h1>
         <p>${items.length ? `${items.length} ${items.length === 1 ? "title" : "titles"} surfaced from the movie and TV index.` : term ? "Nothing matched that search. Try a different title, or search by year." : "Use the search box to look up any movie or series."}</p>
         <div class="page-tools"><button class="chip" type="button" data-open-search>Refine search</button></div>
       </div>
+      ${ledger(items, "Search index")}
       ${items.length ? grid(items) : emptyState("No matches", "TMDB returned no movie or series for that query.", `<button class="btn btn-ghost" type="button" data-open-search>Search again</button>`)}
     </div>`;
+  }
+
+  const CREW_LABELS = { Director: "Directed by", Creator: "Created by", Writer: "Written by", Screenplay: "Written by", Story: "Story by" };
+  function crewLine(crew) {
+    const groups = new Map();
+    for (const member of crew) {
+      const label = CREW_LABELS[member.job];
+      if (!label) continue;
+      if (!groups.has(label)) groups.set(label, []);
+      const names = groups.get(label);
+      if (!names.includes(member.name)) names.push(member.name);
+    }
+    return Array.from(groups).slice(0, 2).map(([label, names]) => `${label} ${names.join(", ")}`).join(" · ");
   }
 
   function titleView(media) {
@@ -584,15 +631,16 @@
       ? `<section class="title-section">
           <div class="title-section-head"><div><span class="kicker">Cast</span><h2 class="h2">Faces in the frame</h2></div></div>
           <div class="cast-rail">${media.cast.map((member) => `<article class="cast-card">
-            <div class="cast-avatar">${member.profile ? `<img src="${esc(img(member.profile, "w185"))}" alt="" width="185" height="185" loading="lazy" decoding="async">` : ""}</div>
+            <div class="cast-avatar">${member.profile ? `<img src="${esc(img(member.profile, "w185"))}" alt="" width="185" height="185" loading="lazy" decoding="async">` : `<span class="cast-mono" aria-hidden="true">${esc(monogram(member.name))}</span>`}</div>
             <p class="cast-name">${esc(member.name || "")}</p>
             <p class="cast-role">${esc(member.role || "Cast")}</p>
           </article>`).join("")}</div>
         </section>`
       : "";
 
-    const crew = media.crew.length
-      ? `<p class="lede" style="margin-top:12px">${media.crew.map((member) => `${esc(member.job)}: ${esc(member.name)}`).join(" · ")}</p>`
+    const credit = crewLine(media.crew);
+    const crew = credit
+      ? `<p class="lede" style="margin-top:12px">${esc(credit)}</p>`
       : "";
 
     const episodes = media.type === "tv"
@@ -624,7 +672,7 @@
       ${media.backdrop ? `<img class="title-bg" src="${esc(img(media.backdrop, "w1280"))}" alt="" width="1280" height="720" fetchpriority="high" decoding="async">` : ""}
       <div class="title-bg-veil" aria-hidden="true"></div>
       <div class="title-inner">
-        <a class="back-link" href="/" data-link>← Back to the catalogue</a>
+        <div class="title-index"><a class="back-link" href="/" data-link>← Archive</a><span>${esc(typeLabel(media.type))} / File ${String(media.id).padStart(6, "0")}</span></div>
         <div class="title-hero">
           <div class="title-poster"><img src="${esc(img(media.poster, "w500"))}" alt="${esc(media.title)} poster" width="500" height="750" fetchpriority="high" decoding="async"></div>
           <div class="title-copy">
@@ -698,11 +746,14 @@
     return `<div class="watch">
       <div class="watch-top">
         <a class="back-link" href="${esc(`/title/${media.id}?type=${media.type}`)}" data-link>← Back to ${esc(media.title)}</a>
-        <span class="kicker">Rapiflix / Watch room</span>
+        <span class="kicker">Rapiflix / Screening room</span>
       </div>
       <div class="watch-grid">
         <div class="stage-wrap">
-          <div class="stage" id="playerStage" data-kind="${esc(source?.kind || "none")}" data-source="${esc(source?.id || "")}">${stage}</div>
+          <div class="stage-shell">
+            <div class="stage-deck"><span>Rapiflix screening room</span><b>Screen 01${isTv ? ` · S${media.season || 1} E${media.episode || 1}` : ""}</b></div>
+            <div class="stage" id="playerStage" data-kind="${esc(source?.kind || "none")}" data-source="${esc(source?.id || "")}">${stage}</div>
+          </div>
           ${status}
           <div class="stage-tools">
             ${selector}
@@ -778,12 +829,17 @@
       const meta = $("[data-hero-meta]", hero);
       const overview = $("[data-hero-overview]", hero);
       const kind = $("[data-hero-kind]", hero);
+      const folio = $("[data-hero-folio]", hero);
+      const ghost = $("[data-hero-ghost]", hero);
       const watch = $("[data-hero-watch]", hero);
       const details = $("[data-hero-details]", hero);
       if (title) title.textContent = item.title;
       if (meta) meta.textContent = [item.year || "", ratingText(item.rating), typeLabel(item.type)].filter(Boolean).join(" · ");
       if (overview) overview.textContent = item.overview || "No synopsis is available for this title yet.";
       if (kind) kind.textContent = typeLabel(item.type);
+      if (folio) folio.textContent = `${String(state.hero.index + 1).padStart(2, "0")} / ${String(list.length).padStart(2, "0")}`;
+      if (ghost) ghost.textContent = String(state.hero.index + 1).padStart(2, "0");
+      $$("[data-hero-ticks] i", hero).forEach((tick, index) => tick.classList.toggle("is-on", index === state.hero.index));
       if (watch) watch.href = `/watch/${item.id}?type=${item.type}`;
       if (details) details.href = `/title/${item.id}?type=${item.type}`;
 

@@ -6,6 +6,28 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = Number(process.env.PORT || 4173);
+const TMDB_KEY = process.env.TMDB_API_KEY || '';
+const LIVE_PREFIXES = ['trending/', 'movie/', 'tv/', 'discover/', 'search/'];
+const liveCache = new Map();
+
+async function liveTmdb(url) {
+  const pathname = url.pathname.replace(/^\/api\/tmdb\//, '');
+  if (!LIVE_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
+  const key = pathname + url.search;
+  const hit = liveCache.get(key);
+  if (hit && hit.expires > Date.now()) return hit;
+  const upstream = new URL(`https://api.themoviedb.org/3/${pathname}`);
+  url.searchParams.forEach((value, name) => upstream.searchParams.set(name, value));
+  upstream.searchParams.set('api_key', TMDB_KEY);
+  try {
+    const response = await fetch(upstream, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(9000) });
+    const payload = { status: response.status, body: await response.json().catch(() => null) };
+    liveCache.set(key, { ...payload, expires: Date.now() + 120000 });
+    return payload;
+  } catch {
+    return null; // network hiccup: fall through to fixtures so local checks keep working
+  }
+}
 
 const film = (id, title, year, rating, hue) => ({
   id, title, overview: `${title} — a fixture synopsis used only for local layout checks.`,
@@ -114,8 +136,16 @@ const server = http.createServer(async (req, res) => {
     return res.end(body);
   }
   if (url.pathname.startsWith('/api/tmdb/')) {
-    const body = api(url);
-    return body ? json(res, body) : json(res, { error: 'Fixture endpoint not found' }, 404);
+    try {
+      if (TMDB_KEY) {
+        const live = await liveTmdb(url);
+        if (live) return json(res, live.body, live.status);
+      }
+      const body = api(url);
+      return body ? json(res, body) : json(res, { error: 'Fixture endpoint not found' }, 404);
+    } catch (error) {
+      return json(res, { error: String(error?.message || error) }, 502);
+    }
   }
   let file = path.join(root, decodeURIComponent(url.pathname));
   try {
