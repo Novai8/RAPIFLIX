@@ -4,11 +4,11 @@ Code-level audit updated 2026-10-22.
 
 ## Playback routing findings
 
-- `streams.json` has one authorized global VidCore iframe provider and no per-movie overrides. The frontend therefore generates a VidCore URL from each title's TMDB ID.
-- The watch page now prefers a per-title source only when its URL is on `vidcore.org` or a VidCore subdomain. Otherwise it uses the configured global VidCore template first, then falls back to a valid HTTPS per-title source only if VidCore is not configured.
-- Per-title source arrays are searched for a usable HTTPS URL instead of assuming the entry is a single object.
+- `streams.json` has one authorized global VidCore iframe provider and no per-movie overrides. The frontend generates a VidCore URL from each title's TMDB ID.
+- Source resolution now lives in `providers.js` with an explicit order: an enabled title-specific PeerTube mapping, then a title-specific HTTPS override, then the global authorized VidCore template.
+- Per-title overrides may be a single object or an array; each candidate must be `https:` and is normalised to an iframe, HLS or file source.
 - TV playback continues to use `/embed/tv/{tmdb_id}/{season}/{episode}`; the previous audit found the `/embed/series/` route returned 404.
-- HLS.js is now loaded for authorized HLS fallback sources in browsers that do not support HLS natively.
+- HLS.js is lazy-loaded from `providers.js` only when an authorized HLS source is actually selected.
 
 ## Provider endpoint smoke checks recorded in the previous audit
 
