@@ -1,4 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="15" fill="#0a0d14"/>
-  <path d="M8 13h16l17 19-17 19H8l17-19zM30 13h16l17 19-17 19H30l17-19z" fill="#ff5a1f"/>
+  <rect width="64" height="64" rx="6" fill="#100e0c"/>
+  <circle cx="32" cy="32" r="25" fill="none" stroke="#f3ece0" stroke-opacity=".45"/>
+  <path d="M32 11 47 19.5v25L32 53 17 44.5v-25Z" fill="none" stroke="#f3ece0" stroke-width="2"/>
+  <circle cx="32" cy="32" r="9" fill="none" stroke="#f3ece0" stroke-opacity=".75" stroke-width="1.6"/>
+  <path d="M28.8 27.2 39 32l-10.2 4.8Z" fill="#ff5a24"/>
+  <rect x="1.5" y="10" width="2" height="8" rx="1" fill="#f3ece0" fill-opacity=".35"/>
+  <rect x="1.5" y="28" width="2" height="8" rx="1" fill="#f3ece0" fill-opacity=".35"/>
+  <rect x="1.5" y="46" width="2" height="8" rx="1" fill="#f3ece0" fill-opacity=".35"/>
+  <rect x="60.5" y="10" width="2" height="8" rx="1" fill="#f3ece0" fill-opacity=".35"/>
+  <rect x="60.5" y="28" width="2" height="8" rx="1" fill="#f3ece0" fill-opacity=".35"/>
+  <rect x="60.5" y="46" width="2" height="8" rx="1" fill="#f3ece0" fill-opacity=".35"/>
 </svg>

@@ -1,40 +1,54 @@
 # Rapiflix
 
-Rapiflix is a cinematic movie-discovery website for films, series and anime. This repository now uses a small route-driven vanilla frontend with no ad injection and a rights-aware playback policy.
+Rapiflix is a cinematic movie, series and anime discovery site. The frontend is a small route-driven vanilla SPA (no framework, no bundler) served by Cloudflare Pages, with TMDB metadata proxied through Pages Functions.
 
-## What changed
+## Structure
 
-- Replaced the previous modal-first catalogue with a new animated shell.
-- Added animated poster/backdrop gradients, ambient image movement, a custom pointer, and a detailed loading sequence.
-- Added URL-addressable title rooms at `/title/:id` with overview, rating, runtime, budget, box office, cast, trailer link and related viewing actions.
-- Added dedicated watch rooms at `/watch/:id` with a responsive VidCore iframe stage for authorized movie and TV playback.
-- Added keyboard-friendly search, theme switching, saved titles, responsive navigation and mobile layouts.
-- Kept the Cloudflare TMDB/CinePro proxy contracts and restored the authorized VidCore provider templates in `streams.json`.
+- `index.html` — the shell: header, boot loader, mobile sheet, search overlay, toast, `#app` mount.
+- `styles.css` — one token-driven design system (dark/light themes, four accent palettes, motion, responsive layouts).
+- `routes.js` — theme and palette persistence, boot sequence, sticky header, focus-trapped mobile sheet, search overlay with recent history and keyboard navigation, shortcuts.
+- `providers.js` — provider registry: validates HTTPS sources, PeerTube embeds, per-title overrides, authorised VidCore templates and the iframe sandbox policy. HLS.js is fetched only when a source needs it.
+- `app.js` — router and views (`/`, `/movies`, `/series`, `/anime`, `/new`, `/search`, `/title/:id`, `/watch/:id`), TMDB data layer with request caching/de-duplication, skeletons, error states and the watch room.
+- `assistant.js` — the existing AI guide widget (unchanged contract).
+- `mouse-interactions.js` — fine-pointer cursor ring, card tilt and magnetic primary buttons; disabled for touch and reduced motion.
+- `functions/api/tmdb/[[path]].js` — allowlisted TMDB proxy; the key stays in a Pages secret.
+- `functions/api/cinepro/[[path]].js` — optional CinePro source lookup proxy.
+- `functions/api/health.js` — JSON health check.
 
-## Routes
+## Data policy
 
-- `/` — cinematic home and trending rail
-- `/movies` — feature catalogue
-- `/series` — series catalogue
-- `/anime` — animated catalogue
-- `/search?q=...` — local catalogue search
-- `/title/:id` — complete title page
-- `/watch/:id` — responsive watch room
+There is no fabricated fallback catalogue. Every card, cast credit, season and episode comes from TMDB through `/api/tmdb/*`. If `TMDB_API_KEY` is not configured, the API returns `503` and the UI shows an explicit outage state instead of inventing titles.
 
 ## Development
 
-The site works without a TMDB key by using a local fallback catalogue. When deployed with `TMDB_API_KEY`, the frontend enriches the catalogue and title rooms through `/api/tmdb/*`.
+UI work without TMDB credentials:
 
 ```bash
-python3 -m http.server 8000
+node tests/fixture-server.mjs   # http://127.0.0.1:4173 with deterministic fixtures
 ```
 
-For Cloudflare Pages Functions locally, use Wrangler with a `.dev.vars` file containing `TMDB_API_KEY` and run `npx wrangler pages dev .`.
+Full stack with Functions:
 
-## Authorized playback
+```bash
+# .dev.vars: TMDB_API_KEY=...
+npx wrangler pages dev .
+```
 
-Playback uses the authorized VidCore iframe templates in `streams.json` for movies and TV episodes. Additional sources may be added only when you are authorized to embed or stream them. Supported source types are direct video URLs, HLS (`type: "hls"`) and authorized iframe embeds (`mode: "iframe"`). Rapiflix does not inject its own advertising, trigger popup windows, or open a second tab when the user presses Play.
+Checks:
 
-Because VidCore is cross-origin, Rapiflix cannot inspect, remove, or guarantee the absence of advertising or popup behavior generated inside VidCore's own iframe. That provider-controlled behavior must be disabled or covered by the VidCore authorization/configuration itself.
+```bash
+node --check app.js && node --check routes.js && node --check providers.js && node --check mouse-interactions.js
+node --test tests/recovery-contract.test.mjs
+```
 
-TMDB provides metadata and watch-provider information; it does not grant movie playback rights. Rapiflix does not insert advertising into its own interface or player.
+## Playback policy
+
+Playback only happens through sources the operator is authorised to embed:
+
+- `peerTube` — self-hosted PeerTube instances (`enabled: false` by default, no instance configured).
+- `movies[id]` — per-title HTTPS overrides (iframe, HLS or direct file).
+- `embedProviders` — the authorised VidCore iframe templates for movies and TV episodes.
+
+Sources are resolved in that order. Iframes are sandboxed with `allow-scripts allow-same-origin allow-forms allow-presentation`; popups and top-level navigation are not permitted. Rapiflix never injects advertising, opens popunders or fabricates a stream URL. When no source is configured, the watch room shows TMDB's official viewing options.
+
+VidCore is cross-origin, so Rapiflix cannot inspect its playback state or anything rendered inside its frame; the watch room says so explicitly instead of claiming success. Metadata by TMDB does not grant playback rights.

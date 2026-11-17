@@ -1,125 +1,1241 @@
+/* Rapiflix app: routing, data access, views and the watch room. */
 (() => {
-  const ui=window.RapiflixUI||{}; const $=ui.$||((s,r=document)=>r.querySelector(s)); const app=$('#app');
-  const IMG='https://image.tmdb.org/t/p/';
-  const fallback=[
-    {id:27205,type:'movie',title:'Inception',year:2010,rating:8.4,genres:['Science Fiction','Action'],runtime:'2h 28m',poster:'oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg',backdrop:'s3TBrRGB1iav7gFOCNx3H31MoES.jpg',overview:'A thief who steals corporate secrets through dream-sharing technology is given the inverse task of planting an idea into the mind of a CEO.',cast:['Leonardo DiCaprio','Joseph Gordon-Levitt','Elliot Page'],budget:160000000,boxOffice:839000000},
-    {id:157336,type:'movie',title:'Interstellar',year:2014,rating:8.7,genres:['Adventure','Drama','Science Fiction'],runtime:'2h 49m',poster:'gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',backdrop:'rAiYTfKGqDCRIIqo664sY9XZIvQ.jpg',overview:'A team of explorers travel through a wormhole in space in an attempt to ensure humanity’s survival.',cast:['Matthew McConaughey','Anne Hathaway','Jessica Chastain'],budget:165000000,boxOffice:731000000},
-    {id:438631,type:'movie',title:'Dune',year:2021,rating:8.0,genres:['Science Fiction','Adventure'],runtime:'2h 35m',poster:'1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',backdrop:'jYEW5xZkZk2WTrdbMGAPFuBqbDc.jpg',overview:'Paul Atreides arrives on the most dangerous planet in the universe to ensure the future of his family and people.',cast:['Timothée Chalamet','Rebecca Ferguson','Oscar Isaac'],budget:165000000,boxOffice:402000000},
-    {id:569094,type:'movie',title:'Spider-Man: Across the Spider-Verse',year:2023,rating:8.6,genres:['Animation','Action','Adventure'],runtime:'2h 20m',poster:'8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg',backdrop:'4HodYYKEIsGOdinkGi2Ucz6X9i0.jpg',overview:'Miles Morales catapults across the multiverse, where he encounters a team of Spider-People charged with protecting its very existence.',cast:['Shameik Moore','Hailee Steinfeld','Brian Tyree Henry'],budget:100000000,boxOffice:690000000},
-    {id:414906,type:'movie',title:'The Batman',year:2022,rating:7.8,genres:['Crime','Mystery','Drama'],runtime:'2h 56m',poster:'74xTEgt7R36Fpooo50r9T25onhq.jpg',backdrop:'b0PlSFdDwbyK0cf5tUwetwpUd8.jpg',overview:'Batman ventures into Gotham City’s underworld when a sadistic killer leaves behind a trail of cryptic clues.',cast:['Robert Pattinson','Zoë Kravitz','Paul Dano'],budget:185000000,boxOffice:772000000},
-    {id:329865,type:'movie',title:'Arrival',year:2016,rating:7.9,genres:['Drama','Science Fiction','Mystery'],runtime:'1h 56m',poster:'x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg',backdrop:'yIZejKrSYvTsj21szf1iiO0eyvg.jpg',overview:'A linguist works with the military to communicate with alien lifeforms after mysterious spacecraft appear around the world.',cast:['Amy Adams','Jeremy Renner','Forest Whitaker'],budget:47000000,boxOffice:203000000},
-    {id:238,type:'movie',title:'The Godfather',year:1972,rating:8.7,genres:['Drama','Crime'],runtime:'2h 55m',poster:'3bhkrj58Vtu7enYsRolD1fZdja1.jpg',backdrop:'tmU7GeKVybMWFButWEGl2M4GeiP.jpg',overview:'The aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant son.',cast:['Marlon Brando','Al Pacino','James Caan'],budget:6000000,boxOffice:250000000},
-    {id:666277,type:'movie',title:'Past Lives',year:2023,rating:7.8,genres:['Drama','Romance'],runtime:'1h 46m',poster:'k3waqVXSnvCZWfJYNtdamTgTtTA.jpg',backdrop:'xUuHj3CgmZQ9P6L9L9h2f2z4nWc.jpg',overview:'Two childhood friends reunite in New York for one fateful week as they confront destiny, love and the choices that shape a life.',cast:['Greta Lee','Teo Yoo','John Magaro'],budget:12000000,boxOffice:42000000}
+  "use strict";
+
+  const ui = window.RapiflixUI || {};
+  const $ = ui.$ || ((selector, root = document) => root.querySelector(selector));
+  const $$ = ui.$$ || ((selector, root = document) => Array.from(root.querySelectorAll(selector)));
+  const esc = ui.esc || ((value) => String(value ?? ""));
+  const providers = window.RapiflixProviders;
+
+  const app = $("#app");
+  const IMG = "https://image.tmdb.org/t/p/";
+  const PAGE_SIZE = 20;
+  const EMPTY_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='3'%3E%3C/svg%3E";
+
+  const GENRES = [
+    { id: "28", slug: "action", label: "Action" },
+    { id: "35", slug: "comedy", label: "Comedy" },
+    { id: "18", slug: "drama", label: "Drama" },
+    { id: "27", slug: "horror", label: "Horror" },
+    { id: "878", slug: "sci-fi", label: "Sci-Fi" },
+    { id: "53", slug: "thriller", label: "Thriller" }
   ];
-  const state={catalog:[...fallback], seriesCatalog:[], active:'home', query:'', streams:{}, cache:new Map(), favorites:new Set(JSON.parse(localStorage.getItem('rapiflix-favorites')||'[]')), categories:{}, searchResults:[], sortMode:'curated', movieRangeLoaded:false, movieRangePage:0, movieRangeTotal:1, seriesPage:0, seriesTotal:1, animePage:0, animeTotal:1, newMovies:[], newMoviesPage:0, newMoviesTotal:1, newSeries:[], newSeriesPage:0, newSeriesTotal:1};
-  const img=(path,size='w780')=>path?(path.startsWith('http')?path:IMG+size+'/'+path):'';
-  const slug=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-  const money=n=>n?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n):'Not reported';
-  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  function toast(message){const t=$('#toast');if(!t)return;t.textContent=message;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400)}
-  async function api(path){if(state.cache.has(path))return state.cache.get(path);try{const r=await fetch('/api/tmdb/'+path);if(!r.ok)throw Error('unavailable');const data=await r.json();state.cache.set(path,data);return data}catch(_){return null}}
-  async function loadStreams(){try{state.streams=await (await fetch('/streams.json')).json()}catch(_) {state.streams={movies:{},embedProviders:[]}}
+
+  /* ---------- state ---------- */
+  const state = {
+    route: null,
+    streams: {},
+    cache: new Map(),
+    inflight: new Map(),
+    favorites: new Set(readFavorites()),
+    feeds: {},
+    titles: new Map(),
+    seasons: new Map(),
+    hero: { items: [], index: 0, timer: 0, paused: false },
+    player: { hls: null, frame: null, timers: [] },
+    providerIndex: 0,
+    providerKey: "",
+    sort: "popularity"
+  };
+
+  function readFavorites() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem("rapiflix-favorites") || "[]");
+      return Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch (_) { return []; }
   }
-  function isHttpsUrl(value){try{return new URL(value).protocol==='https:'}catch(_){return false}}
-  function isVidCoreSource(source){try{const host=new URL(source?.url||'').hostname.toLowerCase();return host==='vidcore.org'||host.endsWith('.vidcore.org')}catch(_){return false}}
-  function configuredSource(id){const entry=(state.streams.movies||{})[id];const candidates=Array.isArray(entry)?entry:[entry];return candidates.find(x=>x&&typeof x.url==='string'&&isHttpsUrl(x.url))||null}
-  function peerTubeSource(m){
-    const config=state.streams.peerTube;
-    if(!config||config.enabled!==true||!isHttpsUrl(config.instanceUrl))return null;
-    const season=Math.max(1,Number(m.season)||1);
-    const episode=Math.max(1,Number(m.episode)||1);
-    const key=m.type==='tv'?`tv:${m.id}:${season}:${episode}`:`movie:${m.id}`;
-    const raw=config.videos?.[key];
-    const videoId=typeof raw==='string'?raw:raw?.uuid||raw?.id||'';
-    if(!/^[A-Za-z0-9-]{8,80}$/.test(videoId))return null;
-    try{
-      const instance=new URL(config.instanceUrl);
-      if(instance.protocol!=='https:'||instance.username||instance.password||instance.pathname!=='/'||instance.search||instance.hash)return null;
-      const url=new URL('/videos/embed/'+encodeURIComponent(videoId),instance.origin);
-      url.searchParams.set('api','1');
-      url.searchParams.set('title','0');
-      return {mode:'iframe',url:url.toString(),provider:'PeerTube',peerTube:true};
-    }catch(_){return null}
+  function saveFavorites() {
+    try { localStorage.setItem("rapiflix-favorites", JSON.stringify([...state.favorites])); } catch (_) {}
   }
-  function providerEmbed(m){const providers=Array.isArray(state.streams.embedProviders)?state.streams.embedProviders:[];const provider=providers.find(x=>x&&x.authorized===true&&x.mode==='iframe'&&x.provider==='VidCore');if(!provider)return null;const tv=m.type==='tv';const template=tv?provider.tvUrlTemplate:provider.movieUrlTemplate;if(typeof template!=='string'||!isHttpsUrl(template)||!isVidCoreSource({url:template}))return null;const season=Math.max(1,Number(m.season)||1);const episode=Math.max(1,Number(m.episode)||1);const url=template.replaceAll('{tmdb_id}',encodeURIComponent(String(m.id))).replaceAll('{season}',String(season)).replaceAll('{episode}',String(episode));return {mode:'iframe',url,provider:provider.label||provider.provider||'VidCore'};}
-  function playbackSource(m){const peerTube=peerTubeSource(m);if(peerTube)return peerTube;const configured=configuredSource(m.id);if(configured&&isVidCoreSource(configured))return configured;return providerEmbed(m)||configured;}
-  function normalize(item,type='movie'){return {id:Number(item.id),type,title:item.title||item.name||'Untitled',releaseDate:String(item.release_date||item.first_air_date||''),year:Number(String(item.release_date||item.first_air_date||'').slice(0,4))||0,rating:Number(item.vote_average||0),genres:(item.genre_names||item.genres||[]).map(g=>typeof g==='string'?g:g.name).filter(Boolean).slice(0,3),runtime:item.runtime?`${Math.floor(item.runtime/60)}h ${item.runtime%60}m`:type==='tv'?'Series':'Runtime unavailable',poster:item.poster||item.poster_path||'',backdrop:item.backdrop||item.backdrop_path||'',overview:item.overview||'No synopsis is available yet.',cast:item.cast||[],budget:item.budget||0,boxOffice:item.revenue||0,seasons:Array.isArray(item.seasons)?item.seasons:[]}}
-  async function loadCollection(path,type='movie'){const data=await api(path);if(data?.results?.length){const remote=data.results.map(x=>normalize(x,type)).filter(x=>x.poster);state.catalog=[...remote,...fallback.filter(f=>!remote.some(x=>x.id===f.id))];return true}return false}
-  async function loadMovieRange(page=1,append=false){const data=await api(`discover/movie?primary_release_date.gte=1995-01-01&primary_release_date.lte=2026-12-31&sort_by=popularity.desc&page=${page}`);if(!data?.results?.length)return false;const remote=data.results.filter(x=>!(x.original_language==='ja'&&(x.genre_ids||[]).includes(16))).map(x=>normalize(x,'movie')).filter(x=>x.poster);state.catalog=append?[...state.catalog,...remote.filter(x=>!state.catalog.some(y=>y.id===x.id))]:remote;state.movieRangeLoaded=true;state.movieRangePage=Number(data.page||page);state.movieRangeTotal=Math.min(Number(data.total_pages||1),500);return true}
-  async function loadCategory(key,path,type='movie'){const data=await api(path);const items=(data?.results||[]).map(x=>normalize(x,type)).filter(x=>x.poster);if(items.length)state.categories[key]=items.slice(0,8);return items.length>0}
-  async function loadSeriesPage(page=1,append=false){const data=await api(`discover/tv?sort_by=popularity.desc&page=${page}&include_adult=false`);if(!data?.results?.length)return false;const items=data.results.map(x=>normalize(x,'tv')).filter(x=>x.poster);state.seriesCatalog=append?[...state.seriesCatalog,...items.filter(x=>!state.seriesCatalog.some(y=>y.id===x.id))]:items;state.seriesPage=Number(data.page||page);state.seriesTotal=Math.min(Number(data.total_pages||1),500);return true}
-  async function loadAnimePage(page=1,append=false){const data=await api(`discover/movie?with_genres=16&with_original_language=ja&sort_by=popularity.desc&page=${page}&include_adult=false`);if(!data?.results?.length)return false;const items=data.results.map(x=>normalize(x,'movie')).filter(x=>x.poster);const existing=state.categories.anime||[];state.categories.anime=append?[...existing,...items.filter(x=>!existing.some(y=>y.id===x.id))]:items;state.animePage=Number(data.page||page);state.animeTotal=Math.min(Number(data.total_pages||1),500);return true}
-  function releaseWindow(){const end=new Date();const start=new Date(end);start.setDate(start.getDate()-365);return {from:start.toISOString().slice(0,10),to:end.toISOString().slice(0,10)}}
-  async function loadNewMoviesPage(page=1,append=false){const dates=releaseWindow();const data=await api(`discover/movie?primary_release_date.gte=${dates.from}&primary_release_date.lte=${dates.to}&sort_by=primary_release_date.desc&page=${page}&include_adult=false`);if(!data?.results)return false;const items=data.results.filter(x=>!(x.original_language==='ja'&&(x.genre_ids||[]).includes(16))).map(x=>normalize(x,'movie')).filter(x=>x.poster);const existing=append?state.newMovies:[];state.newMovies=[...existing,...items.filter(x=>!existing.some(y=>y.id===x.id))].sort((a,b)=>b.releaseDate.localeCompare(a.releaseDate));state.newMoviesPage=Number(data.page||page);state.newMoviesTotal=Math.min(Number(data.total_pages||1),500);return true}
-  async function loadNewSeriesPage(page=1,append=false){const dates=releaseWindow();const data=await api(`discover/tv?first_air_date.gte=${dates.from}&first_air_date.lte=${dates.to}&sort_by=first_air_date.desc&page=${page}&include_adult=false`);if(!data?.results)return false;const items=data.results.map(x=>normalize(x,'tv')).filter(x=>x.poster);const existing=append?state.newSeries:[];state.newSeries=[...existing,...items.filter(x=>!existing.some(y=>y.id===x.id))].sort((a,b)=>b.releaseDate.localeCompare(a.releaseDate));state.newSeriesPage=Number(data.page||page);state.newSeriesTotal=Math.min(Number(data.total_pages||1),500);return true}
-  async function searchCatalog(query){const q=String(query||'').trim();if(!q){state.searchResults=[];return []}const data=await api(`search/multi?query=${encodeURIComponent(q)}&include_adult=false&page=1`);const items=(data?.results||[]).filter(x=>x.media_type==='movie'||x.media_type==='tv').map(x=>normalize(x,x.media_type==='tv'?'tv':'movie')).filter(x=>x.poster);state.searchResults=items;return items}
-  function route(){const p=location.pathname.replace(/\/+$/,'')||'/';const params=new URLSearchParams(location.search);if(p.startsWith('/title/'))return {page:'title',id:p.split('/')[2],type:params.get('type')||''};if(p.startsWith('/watch/'))return {page:'watch',id:p.split('/')[2],type:params.get('type')||''};if(p==='/movies')return {page:'movies',genre:params.get('genre')||''};if(p==='/series')return {page:'series'};if(p==='/anime')return {page:'anime'};if(p==='/new'||p==='/new-releases')return {page:'new'};if(p==='/search')return {page:'search',query:params.get('q')||''};return {page:'home'}}
-  function go(path){history.pushState({},'',path);render()}
-  function linkHandlers(){document.querySelectorAll('[data-link]').forEach(a=>a.onclick=e=>{if(a.origin===location.origin){e.preventDefault();go(a.getAttribute('href'))}})}
-  function setActive(page){document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('active',(page==='home'&&a.dataset.nav==='home')||a.dataset.nav===page))}
-  function card(m, i=0){const saved=state.favorites.has(String(m.id));return `<article class="movie-card" style="--delay:${Math.min(i,10)*55}ms" data-open="${m.id}" data-type="${m.type}"><button class="poster-tile" type="button" aria-label="Open ${esc(m.title)}"><img src="${esc(img(m.poster,'w500'))}" alt="" loading="lazy"><span class="poster-sheen"></span><span class="poster-play">▶</span><span class="poster-index">${String(i+1).padStart(2,'0')}</span></button><div class="card-info"><div><h3>${esc(m.title)}</h3><p>${m.year||'—'} · ${esc(m.genres.slice(0,2).join(' · ')||'Film')}</p></div><button class="save-mini ${saved?'saved':''}" data-save="${m.id}" aria-label="${saved?'Remove':'Save'} ${esc(m.title)}">${saved?'♥':'♡'}</button></div></article>`}
-  function hero(m){return `<section class="hero" style="--hero-image:url('${esc(img(m.backdrop,'original'))}')"><div class="hero-copy"><span class="eyebrow">RAPIFLIX / MOVIES · SERIES · ANIME</span><h1>Stay for<br><em>the story.</em></h1><p>Find your next movie, TV series, or anime obsession in a calmer ad-free streaming space, with rich film details, cast, trailers, and a dedicated watch room.</p><div class="hero-actions"><button class="primary-button" data-open="${m.id}">Explore ${esc(m.title)} <span>↗</span></button><a class="ghost-button" href="/movies" data-link>Browse all movies</a></div><div class="hero-stats"><span><b>${state.catalog.length}+</b> handpicked worlds</span><span><b>0</b> injected ads</span></div></div><div class="hero-feature"><div class="feature-poster"><img src="${esc(img(m.poster,'w780'))}" alt="${esc(m.title)} poster"><span class="feature-orbit"></span></div><div class="feature-caption"><span>NOW IN FOCUS</span><strong>${esc(m.title)}</strong><small>${m.year} · ${esc(m.genres.slice(0,2).join(' · '))}</small></div></div></section>`}
-  function categoryRail(key,label,kicker,items,href){const list=(items&&items.length?items:state.catalog).slice(0,5);return `<section class="category-rail"><div class="rail-head"><div><span class="eyebrow">${kicker}</span><strong>${label}</strong></div><a href="${href}" data-link>Watch all ${label.toLowerCase()} ↗</a></div><div class="movie-grid">${list.map(card).join('')}</div></section>`}
-  function homeView(){const featured=state.catalog[0];const comedy=state.categories.comedy||state.catalog.filter(x=>x.genres.includes('Comedy'));const horror=state.categories.horror||state.catalog.filter(x=>x.genres.includes('Horror'));const anime=state.categories.anime||state.catalog.filter(x=>x.genres.includes('Animation'));return `${hero(featured)}<section class="content-wrap"><div class="section-intro"><div><span class="eyebrow">THE CURRENT CUT</span><h2>Pick a mood.<br><em>Press play.</em></h2></div><p>Browse a few handpicked titles from every corner of Rapiflix, then open the full movie shelf for each category.</p></div>${categoryRail('trending','Trending','Fresh on the front row',state.categories.trending||state.catalog.slice(0,8),'/movies')} ${categoryRail('comedy','Comedy','For the lighter hours',comedy,'/movies?genre=comedy')} ${categoryRail('horror','Horror','For the darker hours',horror,'/movies?genre=horror')} ${categoryRail('anime','Anime Movies','Japanese animated features',anime,'/anime')}<div class="manifesto"><span class="eyebrow">A DIFFERENT KIND OF STREAMING SPACE</span><h2>Less noise.<br><em>More cinema.</em></h2><p>Every title gets its own room: story, cast, numbers, trailers, and the clearest path to watch.</p></div></section>`}
-  function listingView(page,genre=''){let items=genre&&state.categories[genre]?state.categories[genre]:state.catalog;if(genre==='anime')items=state.categories.anime||[];if(page==='series')items=state.seriesCatalog;if(page==='anime')items=state.categories.anime||[];items=[...items].sort((a,b)=>state.sortMode==='rating'?(b.rating-a.rating)||(b.year-a.year):0);let more=page==='movies'&&state.movieRangePage<state.movieRangeTotal?`<button class="primary-button load-more" data-load-more>Load more movies · page ${state.movieRangePage+1}</button>`:'';if(page==='series'&&state.seriesPage<state.seriesTotal)more=`<button class="primary-button load-more" data-load-more-series>Load more series · page ${state.seriesPage+1}</button>`;if(page==='anime'&&state.animePage<state.animeTotal)more=`<button class="primary-button load-more" data-load-more-anime>Load more anime movies · page ${state.animePage+1}</button>`;const heading=genre?genre.charAt(0).toUpperCase()+genre.slice(1):page==='movies'?'The feature reel':page==='series'?'TV series':'Anime movies';return `<section class="listing-page"><div class="page-heading"><span class="eyebrow">RAPIFLIX / ${page.toUpperCase()}</span><h1>${heading}</h1><p>${page==='movies'?'Big swings, quiet films, cult classics and the movies everyone keeps talking about.':page==='series'?'Browse television series, with more results available as you continue.':'Japanese animated feature films, kept in their own shelf.'}</p></div><div class="filter-row"><span>${items.length} titles in this cut</span><button class="filter-pill ${state.sortMode==='curated'?'active':''}" data-sort="curated">Curated view</button><button class="filter-pill ${state.sortMode==='rating'?'active':''}" data-sort="rating">Highest rated</button></div><div class="movie-grid">${items.map(card).join('')}</div>${more}</section>`}
-  function newReleasesView(){const movieMore=state.newMoviesPage<state.newMoviesTotal?`<button class="primary-button load-more" data-load-more-new-movies>Load more new movies · page ${state.newMoviesPage+1}</button>`:'';const seriesMore=state.newSeriesPage<state.newSeriesTotal?`<button class="primary-button load-more" data-load-more-new-series>Load more new series · page ${state.newSeriesPage+1}</button>`:'';return `<section class="listing-page new-releases-page"><div class="page-heading"><span class="eyebrow">RAPIFLIX / JUST RELEASED</span><h1>New movies<br><em>&amp; series.</em></h1><p>Recently released films and newly aired series from the last 12 months, ordered by release date. Updated from the TMDB catalogue.</p></div><section class="new-release-shelf"><div class="rail-head"><div><span class="eyebrow">THE LATEST FILMS</span><strong>New movies</strong></div><span>${state.newMovies.length} loaded</span></div><div class="movie-grid">${state.newMovies.length?state.newMovies.map(card).join(''):'<p class="release-empty">No recent movie releases could be loaded. Try refreshing in a moment.</p>'}</div>${movieMore}</section><section class="new-release-shelf"><div class="rail-head"><div><span class="eyebrow">FRESH EPISODIC STORIES</span><strong>New series</strong></div><span>${state.newSeries.length} loaded</span></div><div class="movie-grid">${state.newSeries.length?state.newSeries.map(card).join(''):'<p class="release-empty">No recent series releases could be loaded. Try refreshing in a moment.</p>'}</div>${seriesMore}</section></section>`}
-  function searchView(q){const items=state.searchResults||[];return `<section class="listing-page"><div class="page-heading"><span class="eyebrow">SEARCH / ${esc(q||'ALL TITLES')}</span><h1>${q?`Results for “${esc(q)}”`:'Find a new favourite.'}</h1><p>${items.length?`${items.length} titles surfaced from the movie and TV index.`:'Nothing matched yet. Try a title, genre, or year.'}</p></div><div class="filter-row"><span>${items.length} search results</span><button class="filter-pill ${state.sortMode==='curated'?'active':''}" data-sort="curated">Curated view</button><button class="filter-pill ${state.sortMode==='rating'?'active':''}" data-sort="rating">Highest rated</button></div><div class="movie-grid">${[...items].sort((a,b)=>state.sortMode==='rating'?(b.rating-a.rating)||(b.year-a.year):0).map(card).join('')}</div></section>`}
-  async function titleData(id,requestedType=''){const local=state.catalog.find(x=>String(x.id)===String(id))||state.seriesCatalog.find(x=>String(x.id)===String(id))||state.newMovies.find(x=>String(x.id)===String(id))||state.newSeries.find(x=>String(x.id)===String(id))||Object.values(state.categories).flat().find(x=>String(x.id)===String(id))||state.searchResults.find(x=>String(x.id)===String(id))||fallback.find(x=>String(x.id)===String(id));if(!local)return null;const type=requestedType==='tv'||(!requestedType&&local.type==='tv')?'tv':'movie';const detail=await api(`${type}/${id}?language=en-US`);const credits=await api(`${type}/${id}/credits?language=en-US`);const videos=await api(`${type}/${id}/videos?language=en-US`);const providers=await api(`${type}/${id}/watch/providers`);return {...local,type,...(detail?normalize({...detail,poster_path:detail.poster_path||local.poster,backdrop_path:detail.backdrop_path||local.backdrop},type):{}),seasons:detail?.seasons||local.seasons||[],cast:(credits?.cast||local.cast.map(name=>({name,character:'Cast'}))).slice(0,10),crew:(credits?.crew||[]).filter(x=>['Director','Writer','Screenplay'].includes(x.job)).slice(0,5),trailer:(videos?.results||[]).find(v=>v.site==='YouTube'&&(v.type==='Trailer'||v.type==='Teaser')),providers:providers?.results||{}}}
-  function titleView(m){const saved=state.favorites.has(String(m.id));const cast=m.cast||[];const seasons=(m.seasons||[]).filter(s=>Number(s.season_number)>=0);return `<section class="detail-page" style="--detail-image:url('${esc(img(m.backdrop||m.poster,'original'))}')"><div class="detail-top"><a href="/" data-link>← Back to the reel</a><span>RAPIFLIX / TITLE ROOM</span></div><div class="detail-hero"><div class="detail-poster"><img src="${esc(img(m.poster,'w780'))}" alt="${esc(m.title)} poster"></div><div class="detail-copy"><span class="eyebrow">${m.type==='tv'?'SERIES':'FEATURE'} / ${m.year||'YEAR UNKNOWN'}</span><h1>${esc(m.title)}</h1><div class="meta-row"><span>★ ${m.rating?m.rating.toFixed(1):'—'}</span><span>${esc(m.runtime)}</span><span>${esc(m.genres.join(' · '))}</span></div><p>${esc(m.overview)}</p><div class="detail-actions"><a class="primary-button" href="/watch/${m.id}?type=${m.type}" data-link>▶ Watch room</a><button class="ghost-button ${saved?'saved':''}" data-save="${m.id}">${saved?'♥ Saved':'♡ Save title'}</button>${m.trailer?`<a class="ghost-button" rel="noreferrer" href="https://www.youtube-nocookie.com/embed/${m.trailer.key}">Watch trailer ↗</a>`:''}</div></div></div><div class="detail-grid"><section class="info-panel"><span class="eyebrow">THE NUMBERS</span><h2>What shaped it.</h2><div class="fact-grid"><div><small>Budget</small><strong>${money(m.budget)}</strong></div><div><small>Box office</small><strong>${money(m.boxOffice)}</strong></div><div><small>Format</small><strong>${m.type==='tv'?'Series':'Feature film'}</strong></div><div><small>Release</small><strong>${m.year||'Not reported'}</strong></div></div></section><section class="info-panel"><span class="eyebrow">THE CAST</span><h2>Faces in the frame.</h2><div class="cast-list">${cast.map((c,i)=>`<div class="cast-row"><span>${String(i+1).padStart(2,'0')}</span><strong>${esc(c.name||c)}</strong><small>${esc(c.character||'Cast')}</small></div>`).join('')}</div></section></div>${m.type==='tv'?`<section class="season-browser"><div class="season-browser-head"><span class="eyebrow">EPISODE GUIDE</span><h2>Pick up where the story goes.</h2><p>Choose a season to load its episodes, then open the selected episode in the watch room.</p></div><label class="season-select-label" for="seasonSelect">Season<select id="seasonSelect" data-series-id="${m.id}">${seasons.map(s=>`<option value="${s.season_number}">${esc(s.name||`Season ${s.season_number}`)}${s.episode_count?` · ${s.episode_count} episodes`:''}</option>`).join('')}</select></label><div id="seasonEpisodes" class="season-episodes" aria-live="polite"><p class="season-loading">Loading episode guide…</p></div></section>`:''}<section class="watch-note"><div><span class="eyebrow">VIEWING NOTE</span><h2>One room for the story.</h2><p>Rapiflix does not insert ads. Playback is available only when an authorized source is configured; otherwise we show official viewing options instead of pretending a catalogue card is a free stream.</p></div><a class="primary-button" href="/watch/${m.id}?type=${m.type}" data-link>Open watch room ↗</a></section></section>`}
-  async function setupSeasonBrowser(m){const select=$('#seasonSelect'),container=$('#seasonEpisodes');if(!select||!container)return;const load=async()=>{const season=Number(select.value||0);container.innerHTML='<p class="season-loading">Loading episodes…</p>';const data=await api(`tv/${m.id}/season/${season}?language=en-US`);const episodes=data?.episodes||[];if(!episodes.length){container.innerHTML='<p class="season-loading">No episode details are available for this season.</p>';return}container.innerHTML=episodes.map(ep=>`<article class="episode-card"><div class="episode-number">E${String(ep.episode_number).padStart(2,'0')}</div><div class="episode-copy"><strong>${esc(ep.name||`Episode ${ep.episode_number}`)}</strong><p>${esc(ep.overview||'Episode synopsis is not available.')}</p><small>${ep.runtime?esc(String(ep.runtime)+' min'):'Runtime unavailable'}${ep.air_date?' · '+esc(ep.air_date):''}</small></div><button type="button" class="episode-watch" data-watch-season="${season}" data-watch-episode="${ep.episode_number}">Watch episode ↗</button></article>`).join('');container.querySelectorAll('[data-watch-season]').forEach(button=>button.addEventListener('click',()=>go(`/watch/${m.id}?type=tv&season=${button.dataset.watchSeason}&episode=${button.dataset.watchEpisode}`)))};select.addEventListener('change',load);if(select.options.length)await load();else container.innerHTML='<p class="season-loading">Season information is not available for this series.</p>'}
-  function brandPlayerLoader(){return `<div class="player-brand-loader" id="playerBrandLoader" role="status" aria-live="polite"><div class="player-brand-orbit"><img src="/favicon.svg" alt=""><i></i></div><strong>RAPIFLIX — Loading Stream...</strong></div>`}
-  function watchView(m){
-    const source=playbackSource(m);
-    const peerTubeStatus=source?.peerTube?'<div class="peer-tube-status" id="providerPlaybackStatus" role="status" aria-live="polite">Connecting to PeerTube…</div>':'';
-    const playerMarkup=source?.url
-      ?source.type==='hls'
-        ?`<video id="video" controls playsinline poster="${esc(img(m.backdrop||m.poster,'original'))}"></video>`
-        :source.mode==='iframe'
-          ?`${brandPlayerLoader()}<iframe ${source.peerTube?'data-peer-tube-player="true" ':''}src="${esc(source.url)}" title="${esc(m.title)} player" loading="eager" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>${peerTubeStatus}`
-          :`<video id="video" controls playsinline poster="${esc(img(m.backdrop||m.poster,'original'))}" src="${esc(source.url)}"></video>`
-      :`<div class="no-source"><span class="play-orb">▶</span><span class="eyebrow">OFFICIAL VIEWING ONLY</span><h1>${esc(m.title)}</h1><p>Playback is available when an authorized source is configured for this title.</p><a class="primary-button" rel="noreferrer" href="https://www.themoviedb.org/${m.type==='tv'?'tv':'movie'}/${m.id}/watch">Find official options ↗</a></div>`;
-    return `<section class="watch-page"><div class="watch-top"><a href="/title/${m.id}?type=${m.type}" data-link>← Back to ${esc(m.title)}</a><span>RAPIFLIX / WATCH ROOM</span></div><div class="watch-layout"><div class="player-stage" id="playerStage">${playerMarkup}</div><aside class="watch-sidebar"><span class="eyebrow">NOW PLAYING</span><h1>${esc(m.title)}</h1><p>${esc(m.overview)}</p><div class="watch-sidebar-facts"><span><small>Year</small><b>${m.year||'—'}</b></span><span><small>Rating</small><b>★ ${m.rating?m.rating.toFixed(1):'—'}</b></span><span><small>Length</small><b>${esc(m.runtime)}</b></span></div><a class="ghost-button" href="/title/${m.id}?type=${m.type}" data-link>See full details ↗</a><a class="ghost-button" href="https://www.themoviedb.org/${m.type==='tv'?'tv':'movie'}/${m.id}/watch" target="_blank" rel="noreferrer">Official viewing options ↗</a></aside></div></section>`;
+
+  /* ---------- helpers ---------- */
+  const img = (path, size = "w342") => (path ? (path.startsWith("http") ? path : IMG + size + path) : "");
+  const toast = (message) => (ui.toast ? ui.toast(message) : null);
+  const dot = '<span class="dot" aria-hidden="true"></span>';
+  const yearOf = (item) => Number(String(item.release_date || item.first_air_date || "").slice(0, 4)) || 0;
+  const runtimeOf = (minutes) => (minutes ? `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m` : "");
+  const money = (value) => (value ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value) : "Not reported");
+  const ratingText = (value) => (Number(value) > 0 ? `★ ${Number(value).toFixed(1)}` : "★ —");
+  const typeLabel = (type) => (type === "tv" ? "Series" : "Movie");
+
+  function normalise(item, type) {
+    const kind = type || (item.media_type === "tv" ? "tv" : "movie");
+    return {
+      id: Number(item.id),
+      type: kind,
+      title: item.title || item.name || "Untitled",
+      year: yearOf(item),
+      releaseDate: String(item.release_date || item.first_air_date || ""),
+      rating: Number(item.vote_average) || 0,
+      votes: Number(item.vote_count) || 0,
+      overview: item.overview || "",
+      poster: item.poster_path || "",
+      backdrop: item.backdrop_path || "",
+      genres: (item.genres || item.genre_names || []).map((genre) => (typeof genre === "string" ? genre : genre.name)).filter(Boolean),
+      runtime: Number(item.runtime) || 0
+    };
   }
-  async function render(){const r=route();state.active=r.page;setActive(r.page);document.body.dataset.page=r.page;if(r.page==='movies'&&!state.movieRangeLoaded)await loadMovieRange();if(r.page==='series'&&!state.seriesPage)await loadSeriesPage();if(r.page==='anime'&&!state.animePage)await loadAnimePage();if(r.page==='new'&&(!state.newMoviesPage||!state.newSeriesPage))await Promise.all([state.newMoviesPage?Promise.resolve(true):loadNewMoviesPage(),state.newSeriesPage?Promise.resolve(true):loadNewSeriesPage()]);if(r.page==='search')await searchCatalog(r.query);let html='',m=null;if(r.page==='home')html=homeView();else if(['movies','series','anime'].includes(r.page))html=listingView(r.page,r.genre);else if(r.page==='new')html=newReleasesView();else if(r.page==='search')html=searchView(r.query);else {m=await titleData(r.id,r.type);if(m&&r.page==='watch'){const params=new URLSearchParams(location.search);m.season=Number(params.get('season')||1);m.episode=Number(params.get('episode')||1)}html=m?(r.page==='title'?titleView(m):watchView(m)):`<section class="error-page"><span class="eyebrow">404 / STORY NOT FOUND</span><h1>That reel is missing.</h1><a class="primary-button" href="/" data-link>Return home</a></section>`}app.innerHTML=html;document.title=r.page==='home'?'Rapiflix — Stay for the story':`Rapiflix — ${r.page==='title'||r.page==='watch'?(html.match(/<h1>(.*?)<\/h1>/)?.[1]||'Title') : r.page}`;linkHandlers();bindCards();if(r.page==='watch'&&m)setupPlayer(m);if(r.page==='title'&&m?.type==='tv')setupSeasonBrowser(m);app.focus({preventScroll:true});updateBackdrop()}
-  function bindCards(){document.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('[data-save]'))return;go(`/title/${el.dataset.open}?type=${el.dataset.type||'movie'}`)}));document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const id=String(b.dataset.save);state.favorites.has(id)?state.favorites.delete(id):state.favorites.add(id);localStorage.setItem('rapiflix-favorites',JSON.stringify([...state.favorites]));toast(state.favorites.has(id)?'Saved to your list':'Removed from your list');render()}));document.querySelectorAll('[data-sort]').forEach(button=>button.addEventListener('click',()=>{state.sortMode=button.dataset.sort==='rating'?'rating':'curated';render()}));$('#app').querySelector('[data-load-more]')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;await loadMovieRange(state.movieRangePage+1,true);render()});$('#app').querySelector('[data-load-more-series]')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;await loadSeriesPage(state.seriesPage+1,true);render()});$('#app').querySelector('[data-load-more-anime]')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;await loadAnimePage(state.animePage+1,true);render()});$('#app').querySelector('[data-load-more-new-movies]')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;await loadNewMoviesPage(state.newMoviesPage+1,true);render()});$('#app').querySelector('[data-load-more-new-series]')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;await loadNewSeriesPage(state.newSeriesPage+1,true);render()})}
-  function loadPeerTubeEmbedApi(){
-    if(window.PeerTubePlayer)return Promise.resolve();
-    if(window.__rapiflixPeerTubeApi)return window.__rapiflixPeerTubeApi;
-    window.__rapiflixPeerTubeApi=new Promise((resolve,reject)=>{
-      const script=document.createElement('script');
-      script.src='https://unpkg.com/@peertube/embed-api/build/player.min.js';
-      script.async=true;
-      script.onload=()=>window.PeerTubePlayer?resolve():reject(new Error('PeerTube player API did not initialize'));
-      script.onerror=()=>reject(new Error('PeerTube player API could not be downloaded'));
-      document.head.appendChild(script);
-    });
-    return window.__rapiflixPeerTubeApi;
-  }
-  async function setupPlayer(m){
-    const source=playbackSource(m);
-    if(source?.type==='hls'&&window.Hls&&$('#video')){const hls=new Hls();hls.loadSource(source.url);hls.attachMedia($('#video'))}
-    const frame=$('#playerStage iframe');
-    const loader=$('#playerBrandLoader');
-    if(frame&&loader){let hidden=false;const hide=()=>{if(hidden)return;hidden=true;loader.classList.add('is-hidden');setTimeout(()=>loader.remove(),650)};frame.addEventListener('load',()=>setTimeout(hide,1500),{once:true});setTimeout(hide,5200)}
-    if(source?.peerTube&&frame){
-      const status=$('#providerPlaybackStatus');
-      const setStatus=value=>{if(status)status.textContent=value};
-      try{
-        await Promise.race([loadPeerTubeEmbedApi(),new Promise((_,reject)=>setTimeout(()=>reject(new Error('PeerTube API timeout')),12000))]);
-        const player=new window.PeerTubePlayer(frame);
-        await Promise.race([player.ready,new Promise((_,reject)=>setTimeout(()=>reject(new Error('PeerTube player timeout')),15000))]);
-        setStatus('PeerTube player connected. Press play to verify the stream.');
-        player.addEventListener('playbackStatusUpdate',event=>{
-          if(event?.playbackState==='playing')setStatus('Playback confirmed · PeerTube is streaming');
-          else if(event?.playbackState==='paused')setStatus('PeerTube connected · playback paused');
-          else if(event?.playbackState==='ended')setStatus('Playback finished');
-        });
-      }catch(error){setStatus('PeerTube could not initialize this video. Check its public status and embed permissions.')}
+
+  /* ---------- data layer ---------- */
+  class ApiError extends Error {
+    constructor(message, status) {
+      super(message);
+      this.name = "ApiError";
+      this.status = status;
     }
   }
-  function updateBackdrop(){const a=state.catalog[0],b=state.catalog[1];const root=document.documentElement;if(a?.backdrop)root.style.setProperty('--back-a',`url('${img(a.backdrop,'w1280')}')`);if(b?.backdrop)root.style.setProperty('--back-b',`url('${img(b.backdrop,'w1280')}')`)}
-  function suggestionMarkup(items){const box=$('#searchSuggestions');if(!box)return;box.innerHTML=items.map((m,i)=>`<button class="search-suggestion" type="button" role="option" data-suggestion-index="${i}" data-suggestion-id="${m.id}" data-suggestion-type="${m.type}"><img src="${esc(img(m.poster,'w92'))}" alt=""><span><strong>${esc(m.title)}</strong><small>${m.type==='tv'?'Series':'Movie'}${m.year?` · ${m.year}`:''}</small></span><b>↗</b></button>`).join('');box.hidden=!items.length;box.querySelectorAll('[data-suggestion-id]').forEach(button=>button.addEventListener('click',()=>{const item=items[Number(button.dataset.suggestionIndex)];if(item&&!state.searchResults.some(x=>String(x.id)===String(item.id)))state.searchResults.push(item);box.hidden=true;go(`/title/${item.id}?type=${item.type}`)}));}
-  async function updateSuggestions(query){const q=String(query||'').trim();const box=$('#searchSuggestions');if(!box)return;if(q.length<2){box.hidden=true;box.innerHTML='';return}const local=[...state.catalog,...fallback].filter((m,i,a)=>m.title.toLowerCase().includes(q.toLowerCase())&&a.findIndex(x=>x.id===m.id)===i).slice(0,5);suggestionMarkup(local);const data=await api(`search/multi?query=${encodeURIComponent(q)}&include_adult=false&page=1`);const remote=(data?.results||[]).filter(x=>x.media_type==='movie'||x.media_type==='tv').map(x=>normalize(x,x.media_type==='tv'?'tv':'movie')).filter(x=>x.poster);const merged=[...local,...remote].filter((m,i,a)=>a.findIndex(x=>x.id===m.id)===i).slice(0,6);suggestionMarkup(merged);}
-  async function init(){await loadStreams();updateBackdrop();$('#themeToggle')?.addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;localStorage.setItem('rapiflix-theme',next)});$('#menuButton')?.addEventListener('click',()=>document.querySelector('.main-nav')?.classList.toggle('open'));const search=$('#searchInput');let suggestTimer=0;search?.addEventListener('input',()=>{clearTimeout(suggestTimer);suggestTimer=setTimeout(()=>updateSuggestions(search.value),180)});search?.addEventListener('keydown',e=>{if(e.key==='Escape'){$('#searchSuggestions').hidden=true}if(e.key==='Enter'&&search.value.trim()){e.preventDefault();$('#searchSuggestions').hidden=true;go('/search?q='+encodeURIComponent(search.value.trim()))}});document.addEventListener('click',e=>{if(!e.target.closest('.search-box-wrap')){$('#searchSuggestions')?.setAttribute('hidden','')}});addEventListener('popstate',render);Promise.all([loadCollection('trending/movie/week').then(()=>{state.categories.trending=state.catalog.slice(0,8)}),loadSeriesPage(1,false),loadCategory('comedy','discover/movie?with_genres=35&sort_by=popularity.desc'),loadCategory('horror','discover/movie?with_genres=27&sort_by=popularity.desc'),loadAnimePage(1,false)]).finally(render);}
-  addEventListener('DOMContentLoaded',init);
+
+  function cacheGet(key) {
+    const entry = state.cache.get(key);
+    if (!entry) return null;
+    if (entry.expires < Date.now()) { state.cache.delete(key); return null; }
+    return entry.data;
+  }
+  function cacheSet(key, data, ttl) {
+    if (state.cache.size > 140) state.cache.delete(state.cache.keys().next().value);
+    state.cache.set(key, { data, expires: Date.now() + ttl });
+  }
+
+  async function request(path, retries, timeout) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(`/api/tmdb/${path}`, { signal: controller.signal, headers: { Accept: "application/json" } });
+      let payload = null;
+      try { payload = await response.json(); } catch (_) {}
+      if (!response.ok) {
+        throw new ApiError(payload?.error || (response.status === 404 ? "That title is not in the catalogue." : "The catalogue is unavailable right now."), response.status);
+      }
+      if (!payload) throw new ApiError("The catalogue returned an unreadable response.", 502);
+      return payload;
+    } catch (error) {
+      if (error.name === "AbortError") throw new ApiError("The catalogue took too long to respond.", 504);
+      if (retries > 0 && (!error.status || error.status >= 500)) {
+        await new Promise((resolve) => setTimeout(resolve, 320));
+        return request(path, retries - 1, timeout);
+      }
+      if (error instanceof ApiError) throw error;
+      throw new ApiError("Could not reach the catalogue. Check your connection.", 0);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function api(path, { ttl = 300000, retries = 1, timeout = 9000 } = {}) {
+    const cached = cacheGet(path);
+    if (cached) return Promise.resolve(cached);
+    if (state.inflight.has(path)) return state.inflight.get(path);
+    const promise = request(path, retries, timeout)
+      .then((data) => { cacheSet(path, data, ttl); return data; })
+      .finally(() => state.inflight.delete(path));
+    state.inflight.set(path, promise);
+    return promise;
+  }
+
+  async function loadStreams() {
+    try {
+      const response = await fetch("/streams.json", { headers: { Accept: "application/json" } });
+      state.streams = response.ok ? await response.json() : {};
+    } catch (_) {
+      state.streams = {};
+    }
+  }
+
+  async function titleData(id, requestedType) {
+    const key = `${requestedType || "auto"}:${id}`;
+    if (state.titles.has(key)) return state.titles.get(key);
+    if (state.inflight.has(key)) return state.inflight.get(key);
+
+    const run = (async () => {
+      const types = requestedType ? [requestedType] : ["movie", "tv"];
+      let lastError = null;
+      for (const type of types) {
+        try {
+          const detail = await api(`${type}/${encodeURIComponent(id)}?language=en-US&append_to_response=credits%2Cvideos%2Cwatch%2Fproviders%2Crecommendations%2Csimilar`, { ttl: 600000 });
+          const media = buildTitle(detail, type);
+          state.titles.set(key, media);
+          return media;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError || new ApiError("That title could not be loaded.", 404);
+    })();
+
+    state.inflight.set(key, run);
+    try { return await run; } finally { state.inflight.delete(key); }
+  }
+
+  function buildTitle(detail, type) {
+    const media = normalise(detail, type);
+    const credits = detail.credits || {};
+    const videos = detail.videos?.results || [];
+    const trailer = videos.find((video) => video.site === "YouTube" && ["Trailer", "Teaser"].includes(video.type)) || videos.find((video) => video.site === "YouTube");
+    const crew = (credits.crew || []).filter((member) => ["Director", "Writer", "Screenplay", "Creator"].includes(member.job)).slice(0, 4);
+    const related = (detail.recommendations?.results || detail.similar?.results || [])
+      .filter((item) => item.poster_path)
+      .slice(0, 10)
+      .map((item) => normalise(item, type));
+
+    return {
+      ...media,
+      genres: (detail.genres || []).map((genre) => genre.name),
+      runtime: Number(detail.runtime) || Number(detail.episode_run_time?.[0]) || 0,
+      status: detail.status || "",
+      language: (detail.original_language || "").toUpperCase(),
+      budget: Number(detail.budget) || 0,
+      revenue: Number(detail.revenue) || 0,
+      seasons: Array.isArray(detail.seasons) ? detail.seasons.filter((season) => Number(season.season_number) >= 0) : [],
+      cast: (credits.cast || []).slice(0, 14).map((member) => ({
+        name: member.name,
+        role: member.character || "",
+        profile: member.profile_path || ""
+      })),
+      crew: crew.map((member) => ({ name: member.name, job: member.job })),
+      trailer: trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : "",
+      providers: detail["watch/providers"]?.results || {},
+      related
+    };
+  }
+
+  /* ---------- feeds ---------- */
+  const today = () => new Date().toISOString().slice(0, 10);
+  const lastYear = () => {
+    const date = new Date();
+    date.setDate(date.getDate() - 365);
+    return date.toISOString().slice(0, 10);
+  };
+
+  function feedPath(page, { genre = "", sort = "popularity", pageNum = 1 } = {}) {
+    const common = `include_adult=false&page=${pageNum}`;
+    if (page === "series") {
+      const order = sort === "rating" ? "vote_average.desc&vote_count.gte=200" : "popularity.desc";
+      return `discover/tv?sort_by=${order}&${common}`;
+    }
+    if (page === "anime") {
+      const order = sort === "rating" ? "vote_average.desc&vote_count.gte=200" : "popularity.desc";
+      return `discover/movie?with_genres=16&with_original_language=ja&sort_by=${order}&${common}`;
+    }
+    const genreId = GENRES.find((entry) => entry.slug === genre)?.id;
+    const order = sort === "rating" ? "vote_average.desc&vote_count.gte=200" : "popularity.desc";
+    const range = "primary_release_date.gte=1995-01-01&primary_release_date.lte=" + today();
+    return `discover/movie?${range}&sort_by=${order}${genreId ? `&with_genres=${genreId}` : ""}&${common}`;
+  }
+
+  async function loadFeed(page, options = {}) {
+    const { pageNum = 1, append = false, genre = "", sort = "popularity" } = options;
+    const type = page === "series" ? "tv" : "movie";
+    const data = await api(feedPath(page, { genre, sort, pageNum }), { ttl: 240000 });
+    const items = (data.results || []).map((item) => normalise(item, type)).filter((item) => item.poster);
+    const previous = append && state.feeds[page] ? state.feeds[page].items : [];
+    const merged = [...previous, ...items.filter((item) => !previous.some((existing) => existing.id === item.id))];
+    state.feeds[page] = {
+      items: merged,
+      page: Number(data.page) || pageNum,
+      total: Math.min(Number(data.total_pages) || 1, 500),
+      genre,
+      sort
+    };
+    return state.feeds[page];
+  }
+
+  async function loadHome() {
+    if (state.feeds.home) return state.feeds.home;
+    if (state.inflight.has("home")) return state.inflight.get("home");
+
+    const run = (async () => {
+      const requests = await Promise.allSettled([
+        api("trending/all/week?language=en-US", { ttl: 240000 }),
+        api("trending/movie/week?language=en-US", { ttl: 240000 }),
+        api("trending/tv/week?language=en-US", { ttl: 240000 }),
+        api("movie/popular?language=en-US&page=1", { ttl: 240000 }),
+        api("tv/popular?language=en-US&page=1", { ttl: 240000 }),
+        api("discover/movie?with_genres=16&with_original_language=ja&sort_by=popularity.desc&page=1&include_adult=false", { ttl: 240000 }),
+        api(`discover/movie?primary_release_date.gte=${lastYear()}&primary_release_date.lte=${today()}&sort_by=primary_release_date.desc&page=1&include_adult=false`, { ttl: 240000 })
+      ]);
+
+      const pick = (index, type) => {
+        const result = requests[index];
+        if (result.status !== "fulfilled") return [];
+        return (result.value.results || [])
+          .filter((item) => !item.media_type || item.media_type === "movie" || item.media_type === "tv")
+          .map((item) => normalise(item, type))
+          .filter((item) => item.poster);
+      };
+
+      const featured = pick(0);
+      const failures = requests.filter((result) => result.status === "rejected").length;
+      const feed = {
+        featured,
+        trendingMovies: pick(1, "movie"),
+        trendingSeries: pick(2, "tv"),
+        popularMovies: pick(3, "movie"),
+        popularSeries: pick(4, "tv"),
+        anime: pick(5, "movie"),
+        newMovies: pick(6, "movie"),
+        failures
+      };
+      state.feeds.home = feed;
+      return feed;
+    })();
+
+    state.inflight.set("home", run);
+    try { return await run; } finally { state.inflight.delete("home"); }
+  }
+
+  async function searchCatalog(query) {
+    const term = String(query || "").trim();
+    if (!term) return { items: [], term };
+    const data = await api(`search/multi?query=${encodeURIComponent(term)}&include_adult=false&page=1`, { ttl: 120000 });
+    const items = (data.results || [])
+      .filter((item) => item.media_type === "movie" || item.media_type === "tv")
+      .map((item) => normalise(item, item.media_type))
+      .filter((item) => item.poster);
+    return { items, term };
+  }
+
+  async function seasonEpisodes(id, season) {
+    const key = `${id}:${season}`;
+    if (state.seasons.has(key)) return state.seasons.get(key);
+    const data = await api(`tv/${encodeURIComponent(id)}/season/${encodeURIComponent(season)}?language=en-US`, { ttl: 600000 });
+    const episodes = (data.episodes || []).map((episode) => ({
+      number: Number(episode.episode_number) || 0,
+      name: episode.name || "",
+      overview: episode.overview || "",
+      runtime: Number(episode.runtime) || 0,
+      airDate: episode.air_date || "",
+      still: episode.still_path || ""
+    }));
+    state.seasons.set(key, episodes);
+    return episodes;
+  }
+
+  /* ---------- router ---------- */
+  function route() {
+    const path = location.pathname.replace(/\/+$/, "") || "/";
+    const params = new URLSearchParams(location.search);
+    if (path.startsWith("/title/")) return { page: "title", id: path.split("/")[2] || "", type: params.get("type") || "" };
+    if (path.startsWith("/watch/")) {
+      return {
+        page: "watch",
+        id: path.split("/")[2] || "",
+        type: params.get("type") || "",
+        season: Number(params.get("season")) || 1,
+        episode: Number(params.get("episode")) || 1
+      };
+    }
+    if (path === "/movies") return { page: "movies", genre: params.get("genre") || "" };
+    if (path === "/series") return { page: "series" };
+    if (path === "/anime") return { page: "anime" };
+    if (path === "/new" || path === "/new-releases") return { page: "new" };
+    if (path === "/search") return { page: "search", query: params.get("q") || "" };
+    return { page: "home" };
+  }
+
+  let renderToken = 0;
+
+  function go(path, { replace = false } = {}) {
+    if (replace) history.replaceState({}, "", path);
+    else history.pushState({}, "", path);
+    render();
+  }
+
+  function setActive(page) {
+    const current = page === "title" || page === "watch" ? "" : page;
+    $$("[data-nav]").forEach((link) => {
+      const key = link.dataset.nav;
+      const active = key === current || (page === "title" && key === "movies");
+      link.classList.toggle("active", active);
+      if (active) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
+  }
+
+  function setTitle(text) {
+    document.title = text ? `${text} — Rapiflix` : "Rapiflix — Stay for the story";
+  }
+
+  function skeletonCards(count = 8) {
+    return Array.from({ length: count }, () => `<div class="sk-card" aria-hidden="true"><div class="sk sk-poster"></div><div class="sk sk-line"></div><div class="sk sk-line short"></div></div>`).join("");
+  }
+
+  function skeletonFor(r) {
+    if (r.page === "title" || r.page === "watch") {
+      return `<div class="hero-sk"><div class="hero-sk-grid"><div class="hero-sk-copy"><div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line"></div></div><div class="sk sk-hero"></div></div></div>`;
+    }
+    if (r.page === "home") {
+      return `<div class="hero-sk"><div class="hero-sk-grid"><div class="hero-sk-copy"><div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line"></div></div><div class="sk sk-hero"></div></div></div>
+      <div class="page"><div class="sk" style="height:26px;width:220px;margin:30px 0 22px"></div><div class="grid">${skeletonCards(6)}</div></div>`;
+    }
+    return `<div class="page"><div class="sk sk-line" style="width:120px;margin-top:40px"></div><div class="sk" style="height:52px;width:min(420px,70%);margin:16px 0 10px"></div><div class="sk sk-line" style="width:min(560px,90%);margin-bottom:28px"></div><div class="grid">${skeletonCards(12)}</div></div>`;
+  }
+
+  function errorState(error, retry) {
+    return `<div class="app-error">
+      <span class="kicker">RAPIFLIX / OUTAGE</span>
+      <h1>We lost the reel.</h1>
+      <p>${esc(error?.message || "The catalogue is unavailable right now.")}</p>
+      ${retry ? `<button class="btn btn-accent" type="button" data-retry>Try again</button>` : ""}
+    </div>`;
+  }
+
+  /* ---------- components ---------- */
+  const monogram = (text) => String(text || "")
+    .trim().split(/\s+/).filter(Boolean).slice(0, 2)
+    .map((word) => Array.from(word)[0] || "").join("").toUpperCase() || "RF";
+
+  function card(item, index = 0) {
+    const saved = state.favorites.has(String(item.id));
+    return `<article class="card" style="--d:${Math.min(index, 9) * 40}ms">
+      <button class="card-btn" type="button" data-open="${esc(item.id)}" data-type="${esc(item.type)}" aria-label="Open ${esc(item.title)}">
+        <span class="card-frame">
+          ${item.poster
+            ? `<img src="${esc(img(item.poster))}" alt="" width="300" height="450" loading="lazy" decoding="async">`
+            : `<span class="card-plate" aria-hidden="true"><b>${esc(monogram(item.title))}</b><small>No plate on file</small></span>`}
+          <span class="card-sprockets" aria-hidden="true"></span>
+          <span class="card-index">${String(index + 1).padStart(3, "0")}</span>
+          ${item.rating > 0 ? `<span class="card-rating">${esc(ratingText(item.rating))}</span>` : ""}
+          <span class="card-type">${esc(typeLabel(item.type))}</span>
+          <span class="card-hover" aria-hidden="true">Open ↗</span>
+        </span>
+        <span class="card-body">
+          <span class="card-title">${esc(item.title)}</span>
+          <span class="card-meta"><b>${esc(item.year || "—")}</b><i>${esc(typeLabel(item.type))}</i></span>
+        </span>
+      </button>
+      <button class="card-save ${saved ? "is-saved" : ""}" type="button" data-save="${esc(item.id)}" aria-pressed="${saved}" aria-label="${saved ? "Remove" : "Save"} ${esc(item.title)}">${saved ? "♥" : "♡"}</button>
+    </article>`;
+  }
+
+  function ledger(items, label) {
+    const list = (items || []).slice(0, 5);
+    if (!list.length) return "";
+    return `<ol class="ledger" aria-label="${esc(label || "Catalogue index")}">
+      ${list.map((item, index) => `<li><button type="button" data-open="${esc(item.id)}" data-type="${esc(item.type)}">
+        <span class="ledger-no">${String(index + 1).padStart(2, "0")}</span>
+        <span class="ledger-title">${esc(item.title)}</span>
+        <span class="ledger-meta">${esc(item.year || "—")} · ${esc(ratingText(item.rating))}</span>
+      </button></li>`).join("")}
+    </ol>`;
+  }
+
+  const TICKER = ["Now showing", "Metadata by TMDB", "No ads inserted", "Authorised sources only", "Stay for the story"];
+  function ticker() {
+    const run = TICKER.map((text) => `<span><b>◆</b>${esc(text)}</span>`).join("");
+    return `<div class="ticker" aria-hidden="true"><div class="ticker-track">${run}${run}</div></div>`;
+  }
+
+  function grid(items) {
+    return `<div class="grid">${items.map((item, index) => card(item, index)).join("")}</div>`;
+  }
+
+  function reel(id, kicker, title, items, href, label) {
+    if (!items || !items.length) return "";
+    return `<section class="reel" data-reel="${esc(id)}">
+      <div class="reel-head">
+        <div><span class="kicker">${esc(kicker)}</span><h2 class="h2">${esc(title)}</h2></div>
+        <div class="reel-tools">
+          <button class="rail-btn" type="button" data-rail="prev" data-rail-target="${esc(id)}" aria-label="Scroll ${esc(title)} left">←</button>
+          <button class="rail-btn" type="button" data-rail="next" data-rail-target="${esc(id)}" aria-label="Scroll ${esc(title)} right">→</button>
+          ${href ? `<a class="reel-link" href="${esc(href)}" data-link>${esc(label || "See all")} ↗</a>` : ""}
+        </div>
+      </div>
+      <div class="reel-track" id="rail-${esc(id)}">${items.map((item, index) => card(item, index)).join("")}</div>
+    </section>`;
+  }
+
+  function emptyState(title, body, action) {
+    return `<div class="empty-state"><strong>${esc(title)}</strong><p>${esc(body)}</p>${action || ""}</div>`;
+  }
+
+  /* ---------- views ---------- */
+  function heroMarkup(items) {
+    const first = items[0];
+    if (!first) return "";
+    return `<section class="hero" data-hero>
+      <div class="hero-media" aria-hidden="true">
+        <img class="hero-img is-on" data-hero-layer="a" src="${esc(img(first.backdrop, "w1280"))}" alt="" width="1280" height="720" fetchpriority="high" decoding="async">
+        <img class="hero-img" data-hero-layer="b" src="${esc(EMPTY_IMAGE)}" alt="" width="1280" height="720" decoding="async">
+      </div>
+      <div class="hero-veil" aria-hidden="true"></div>
+      <div class="hero-copy">
+        <p class="hero-folio"><b>Now showing</b><span data-hero-folio>01 / ${String(items.length).padStart(2, "0")}</span></p>
+        <span class="kicker">Featured · <span data-hero-kind>${esc(typeLabel(first.type))}</span></span>
+        <h1 class="hero-title" data-hero-title>${esc(first.title)}</h1>
+        <p class="hero-meta" data-hero-meta>${esc([first.year || "", ratingText(first.rating), typeLabel(first.type)].filter(Boolean).join(" · "))}</p>
+        <p class="hero-overview" data-hero-overview>${esc(first.overview || "No synopsis is available for this title yet.")}</p>
+        <div class="hero-actions">
+          <a class="btn btn-accent" href="${esc(`/watch/${first.id}?type=${first.type}`)}" data-link data-hero-watch>▶ Watch now</a>
+          <a class="btn btn-ghost" href="${esc(`/title/${first.id}?type=${first.type}`)}" data-link data-hero-details>Details</a>
+        </div>
+      </div>
+      <div class="hero-side">
+        <span class="hero-ghost" data-hero-ghost aria-hidden="true">01</span>
+        <div class="hero-ticks" data-hero-ticks aria-hidden="true">
+          ${items.map((_, index) => `<i class="${index === 0 ? "is-on" : ""}"></i>`).join("")}
+        </div>
+        <div class="hero-poster is-on"><img data-hero-poster="a" src="${esc(img(first.poster, "w500"))}" alt="" width="500" height="750" loading="eager" decoding="async"></div>
+        ${items[1] ? `<div class="hero-poster is-off"><img data-hero-poster="b" src="${esc(img(items[1].poster, "w500"))}" alt="" width="500" height="750" loading="lazy" decoding="async"></div>` : ""}
+      </div>
+    </section>`;
+  }
+
+  function homeView(feed) {
+    const featured = (feed.featured || []).filter((item) => item.backdrop).slice(0, 5);
+    const fallbackFeatured = featured.length ? featured : [...feed.trendingMovies, ...feed.popularSeries].filter((item) => item.backdrop).slice(0, 5);
+    const sections = [
+      reel("trending", "This week", "Trending movies", feed.trendingMovies.slice(0, 14), "/movies", "All movies"),
+      reel("series", "Episodic", "Trending series", feed.trendingSeries.slice(0, 14), "/series", "All series"),
+      reel("popular", "Audience picks", "Popular films", feed.popularMovies.slice(0, 14), "/movies?sort=rating", "Browse"),
+      reel("anime", "Animation", "Anime films", feed.anime.slice(0, 14), "/anime", "All anime"),
+      reel("new", "Just released", "New this year", feed.newMovies.slice(0, 14), "/new", "See new releases")
+    ].filter(Boolean).join("");
+
+    const notice = feed.failures
+      ? `<div class="load-error"><span>Some rows could not be loaded from TMDB (${feed.failures} request${feed.failures > 1 ? "s" : ""} failed).</span><button class="btn btn-quiet" type="button" data-retry>Reload</button></div>`
+      : "";
+
+    return `${heroMarkup(fallbackFeatured)}
+      ${ticker()}
+      <div class="page">
+        ${notice}
+        <div class="page-head" style="border-bottom:0;padding-bottom:0">
+          <span class="kicker">The archive · Vol. 01</span>
+          <h2 class="h2" style="margin-top:12px;max-width:24ch">Pick a mood.<br><em>Press play.</em></h2>
+          <p>Five shelves of films, series and animation, pulled live from TMDB and framed like a contact sheet.</p>
+        </div>
+        ${sections || emptyState("Nothing to show yet", "The archive came back empty. Try reloading in a moment.")}
+        <div class="notice">
+          <div>
+            <h2>No injected ads. No forced redirects.</h2>
+            <p>Rapiflix never inserts advertising or popups into its own interface. Playback happens only through an authorised source; when none is configured for a title, we point you to official viewing options instead of faking a stream.</p>
+          </div>
+          <a class="btn btn-ghost" href="/new" data-link>New releases ↗</a>
+        </div>
+      </div>`;
+  }
+
+  function listingView(r) {
+    const feed = state.feeds[r.page];
+    const genre = r.genre || "";
+    const genreEntry = GENRES.find((entry) => entry.slug === genre);
+    const labels = {
+      movies: { kicker: "Rapiflix / Movies", title: genreEntry ? `${esc(genreEntry.label)} <em>films</em>` : `The feature <em>reel</em>`, body: "Features from 1995 onwards, ordered by popularity. Filter by genre or switch to the highest-rated cut." },
+      series: { kicker: "Rapiflix / Series", title: `Continue the <em>story</em>`, body: "Series and limited runs, ordered by what the archive is watching now. Load more reels as you go." },
+      anime: { kicker: "Rapiflix / Anime", title: `Drawn <em>worlds</em>`, body: "Japanese animated features, kept on their own shelf so they never get buried." },
+      new: { kicker: "Rapiflix / New", title: `Fresh <em>prints</em>`, body: "Films and series released in the last twelve months, newest first." }
+    }[r.page];
+
+    const tools = r.page === "movies"
+      ? `<div class="page-tools">
+          <a class="chip ${!genre ? "is-active" : ""}" href="/movies" data-link>All</a>
+          ${GENRES.map((entry) => `<a class="chip ${genre === entry.slug ? "is-active" : ""}" href="/movies?genre=${entry.slug}" data-link>${esc(entry.label)}</a>`).join("")}
+          <button class="chip ${state.sort === "rating" ? "is-active" : ""}" type="button" data-sort="${state.sort === "rating" ? "popularity" : "rating"}">Highest rated</button>
+          <span class="count-note">${feed ? `${feed.items.length} loaded` : ""}</span>
+        </div>`
+      : `<div class="page-tools">
+          <button class="chip ${state.sort === "popularity" ? "is-active" : ""}" type="button" data-sort="popularity">Popular</button>
+          <button class="chip ${state.sort === "rating" ? "is-active" : ""}" type="button" data-sort="rating">Highest rated</button>
+          <span class="count-note">${feed ? `${feed.items.length} loaded` : ""}</span>
+        </div>`;
+
+    const body = feed && feed.items.length
+      ? grid(feed.items)
+      : emptyState("No titles loaded", "This shelf came back empty. Try again, or explore another section.", `<button class="btn btn-ghost" type="button" data-retry>Reload</button>`);
+
+    const more = feed && feed.page < feed.total
+      ? `<div class="load-more-wrap"><button class="btn btn-ghost" type="button" data-more>Load more · page ${feed.page + 1}</button></div>`
+      : "";
+
+    return `<div class="page listing">
+      <div class="page-head">
+        <span class="kicker">${esc(labels.kicker)}</span>
+        <h1 class="display">${labels.title}</h1>
+        <p>${esc(labels.body)}</p>
+        ${tools}
+      </div>
+      ${ledger(feed?.items, `${labels.kicker} index`)}
+      ${body}
+      ${more}
+    </div>`;
+  }
+
+  function newView() {
+    const feed = state.feeds.new;
+    const movies = feed?.movies || [];
+    const series = feed?.series || [];
+    const more = feed && feed.page < feed.total
+      ? `<div class="load-more-wrap"><button class="btn btn-ghost" type="button" data-more>Load more · page ${feed.page + 1}</button></div>`
+      : "";
+    return `<div class="page listing">
+      <div class="page-head">
+        <span class="kicker">Rapiflix / Just released</span>
+        <h1 class="display">New movies<br><em>&amp; series.</em></h1>
+        <p>Everything from the last twelve months, newest first. Sourced live from TMDB and framed as a contact sheet.</p>
+      </div>
+      ${ledger([...movies, ...series], "New releases index")}
+      ${movies.length ? `<section class="reel"><div class="reel-head"><div><span class="kicker">Films</span><h2 class="h2">New movies</h2></div><span class="count-note">${movies.length} loaded</span></div>${grid(movies)}</section>` : emptyState("No new films yet", "Recent releases could not be loaded right now.", `<button class="btn btn-ghost" type="button" data-retry>Reload</button>`)}
+      ${series.length ? `<section class="reel"><div class="reel-head"><div><span class="kicker">Series</span><h2 class="h2">New series</h2></div><span class="count-note">${series.length} loaded</span></div>${grid(series)}</section>` : ""}
+      ${more}
+    </div>`;
+  }
+
+  function searchView(result) {
+    const items = result?.items || [];
+    const term = result?.term || "";
+    return `<div class="page listing">
+      <div class="page-head">
+        <span class="kicker">Rapiflix / Search</span>
+        <h1 class="display">${term ? `Results for<br><em>${esc(term)}</em>` : "Find a favourite."}</h1>
+        <p>${items.length ? `${items.length} ${items.length === 1 ? "title" : "titles"} surfaced from the movie and TV index.` : term ? "Nothing matched that search. Try a different title, or search by year." : "Use the search box to look up any movie or series."}</p>
+        <div class="page-tools"><button class="chip" type="button" data-open-search>Refine search</button></div>
+      </div>
+      ${ledger(items, "Search index")}
+      ${items.length ? grid(items) : emptyState("No matches", "TMDB returned no movie or series for that query.", `<button class="btn btn-ghost" type="button" data-open-search>Search again</button>`)}
+    </div>`;
+  }
+
+  const CREW_LABELS = { Director: "Directed by", Creator: "Created by", Writer: "Written by", Screenplay: "Written by", Story: "Story by" };
+  function crewLine(crew) {
+    const groups = new Map();
+    for (const member of crew) {
+      const label = CREW_LABELS[member.job];
+      if (!label) continue;
+      if (!groups.has(label)) groups.set(label, []);
+      const names = groups.get(label);
+      if (!names.includes(member.name)) names.push(member.name);
+    }
+    return Array.from(groups).slice(0, 2).map(([label, names]) => `${label} ${names.join(", ")}`).join(" · ");
+  }
+
+  function titleView(media) {
+    const saved = state.favorites.has(String(media.id));
+    const genres = media.genres.length ? media.genres.join(" · ") : "";
+    const runtime = runtimeOf(media.runtime);
+    const providerList = Object.values(media.providers || {}).flatMap((region) => (region.flatrate || []).map((provider) => provider.provider_name));
+    const facts = [
+      ["Type", typeLabel(media.type)],
+      ["Released", media.year || "Unknown"],
+      ["Rating", media.rating ? `${media.rating.toFixed(1)} / 10` : "Not rated"],
+      ["Runtime", runtime || "Unavailable"]
+    ];
+    if (media.type === "movie") {
+      facts.push(["Budget", money(media.budget)], ["Box office", money(media.revenue)]);
+    } else if (media.seasons.length) {
+      facts.push(["Seasons", String(media.seasons.length)]);
+    }
+    if (media.language) facts.push(["Language", media.language]);
+
+    const cast = media.cast.length
+      ? `<section class="title-section">
+          <div class="title-section-head"><div><span class="kicker">Cast</span><h2 class="h2">Faces in the frame</h2></div></div>
+          <div class="cast-rail">${media.cast.map((member) => `<article class="cast-card">
+            <div class="cast-avatar">${member.profile ? `<img src="${esc(img(member.profile, "w185"))}" alt="" width="185" height="185" loading="lazy" decoding="async">` : `<span class="cast-mono" aria-hidden="true">${esc(monogram(member.name))}</span>`}</div>
+            <p class="cast-name">${esc(member.name || "")}</p>
+            <p class="cast-role">${esc(member.role || "Cast")}</p>
+          </article>`).join("")}</div>
+        </section>`
+      : "";
+
+    const credit = crewLine(media.crew);
+    const crew = credit
+      ? `<p class="lede" style="margin-top:12px">${esc(credit)}</p>`
+      : "";
+
+    const episodes = media.type === "tv"
+      ? (() => {
+          const firstSeason = media.seasons.find((season) => Number(season.season_number) === 1)
+            || media.seasons.find((season) => Number(season.season_number) > 0)
+            || media.seasons[0];
+          return `<section class="title-section episodes" id="episodes">
+          <div class="title-section-head"><div><span class="kicker">Episode guide</span><h2 class="h2">Pick up the story</h2></div></div>
+          <div class="episode-controls">
+            <label for="seasonSelect">Season</label>
+            <select id="seasonSelect" data-series-id="${esc(media.id)}">
+              ${media.seasons.map((season) => `<option value="${esc(season.season_number)}" ${season === firstSeason ? "selected" : ""}>${esc(season.name || `Season ${season.season_number}`)}${season.episode_count ? ` · ${season.episode_count} episodes` : ""}</option>`).join("")}
+            </select>
+          </div>
+          <div id="seasonEpisodes" class="episode-list" aria-live="polite"><p class="lede">Loading episodes…</p></div>
+        </section>`;
+        })()
+      : "";
+
+    const related = media.related.length
+      ? `<section class="title-section">
+          <div class="title-section-head"><div><span class="kicker">Because you opened this</span><h2 class="h2">Related titles</h2></div></div>
+          ${grid(media.related.slice(0, 10))}
+        </section>`
+      : "";
+
+    return `<section class="title-page">
+      ${media.backdrop ? `<img class="title-bg" src="${esc(img(media.backdrop, "w1280"))}" alt="" width="1280" height="720" fetchpriority="high" decoding="async">` : ""}
+      <div class="title-bg-veil" aria-hidden="true"></div>
+      <div class="title-inner">
+        <div class="title-index"><a class="back-link" href="/" data-link>← Archive</a><span>${esc(typeLabel(media.type))} / File ${String(media.id).padStart(6, "0")}</span></div>
+        <div class="title-hero">
+          <div class="title-poster"><img src="${esc(img(media.poster, "w500"))}" alt="${esc(media.title)} poster" width="500" height="750" fetchpriority="high" decoding="async"></div>
+          <div class="title-copy">
+            <span class="kicker">${esc(typeLabel(media.type))}${media.year ? ` · ${esc(media.year)}` : ""}</span>
+            <h1>${esc(media.title)}</h1>
+            <p class="title-meta">${[
+              media.rating ? `<span class="title-score">${esc(ratingText(media.rating))}</span>` : "",
+              esc(runtime),
+              esc(genres),
+              esc(media.status)
+            ].filter(Boolean).join(dot)}</p>
+            <p class="title-overview">${esc(media.overview || "No synopsis is available for this title yet.")}</p>
+            <div class="title-actions">
+              <a class="btn btn-accent" href="${esc(`/watch/${media.id}?type=${media.type}${media.type === "tv" ? "&season=1&episode=1" : ""}`)}" data-link>▶ Watch room</a>
+              <button class="btn btn-ghost ${saved ? "is-saved" : ""}" type="button" data-save="${esc(media.id)}" aria-pressed="${saved}">${saved ? "♥ Saved" : "♡ Save title"}</button>
+              ${media.trailer ? `<a class="btn btn-ghost" href="${esc(media.trailer)}" target="_blank" rel="noopener noreferrer">Watch trailer ↗</a>` : ""}
+            </div>
+            <div class="title-facts">${facts.map(([label, value]) => `<div><small>${esc(label)}</small><strong>${esc(value)}</strong></div>`).join("")}</div>
+            ${crew}
+            ${providerList.length ? `<p class="lede" style="margin-top:14px">Streaming providers listed by TMDB: ${esc([...new Set(providerList)].slice(0, 6).join(", "))}</p>` : ""}
+          </div>
+        </div>
+        ${cast}
+        ${episodes}
+        ${related}
+        <div class="notice">
+          <div>
+            <h2>One room for the story.</h2>
+            <p>Playback is available only when an authorised source is configured for this title. Otherwise the watch room shows official viewing options rather than pretending a catalogue card is a free stream.</p>
+          </div>
+          <a class="btn btn-ghost" href="${esc(`/watch/${media.id}?type=${media.type}`)}" data-link>Open watch room ↗</a>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  function watchView(media, sources, selectedIndex = 0) {
+    const isTv = media.type === "tv";
+    const source = sources[selectedIndex] || null;
+    const official = providers ? providers.officialUrl(media) : `https://www.themoviedb.org/${isTv ? "tv" : "movie"}/${media.id}/watch`;
+
+    const stage = source
+      ? `<div class="stage-mask" id="stageMask">
+            <div class="boot-orbit"><img src="/favicon.svg" alt=""></div>
+            <strong>Loading stream</strong>
+            <small>${esc(source.label)}</small>
+          </div>
+          ${source.kind === "iframe"
+            ? `<iframe id="providerFrame" src="${esc(source.url)}" title="${esc(media.title)} player" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen sandbox="${esc(providers.IFRAME_SANDBOX)}" referrerpolicy="origin"></iframe>`
+            : `<video id="videoStage" controls playsinline preload="metadata" poster="${esc(img(media.backdrop || media.poster, "w1280"))}"></video>`}`
+      : `<div class="fallback">
+          <span class="play-glyph" aria-hidden="true">▶</span>
+          <span class="kicker">Official viewing only</span>
+          <h1>${esc(media.title)}</h1>
+          <p>No authorised playback source is configured for this title. Use the official options below instead of an unverified stream.</p>
+          <a class="btn btn-accent" href="${esc(official)}" target="_blank" rel="noopener noreferrer">Official viewing options ↗</a>
+        </div>`;
+
+    const selector = sources.length > 1
+      ? `<label class="source-pick" for="providerSelect">Source
+           <select id="providerSelect">
+             ${sources.map((item, index) => `<option value="${index}" ${index === selectedIndex ? "selected" : ""}>${esc(item.label)}</option>`).join("")}
+           </select>
+         </label>`
+      : "";
+
+    const status = source
+      ? `<div class="stage-status" id="playerStatus" role="status" aria-live="polite"><span class="status-dot" id="statusDot"></span><span id="statusText">Connecting to ${esc(source.label)}…</span></div>`
+      : "";
+
+    return `<div class="watch">
+      <div class="watch-top">
+        <a class="back-link" href="${esc(`/title/${media.id}?type=${media.type}`)}" data-link>← Back to ${esc(media.title)}</a>
+        <span class="kicker">Rapiflix / Screening room</span>
+      </div>
+      <div class="watch-grid">
+        <div class="stage-wrap">
+          <div class="stage-shell">
+            <div class="stage-deck"><span>Rapiflix screening room</span><b>Screen 01${isTv ? ` · S${media.season || 1} E${media.episode || 1}` : ""}</b></div>
+            <div class="stage" id="playerStage" data-kind="${esc(source?.kind || "none")}" data-source="${esc(source?.id || "")}">${stage}</div>
+          </div>
+          ${status}
+          <div class="stage-tools">
+            ${selector}
+            ${source ? `<button class="btn btn-quiet" type="button" data-retry-player>↺ Reload stream</button>` : ""}
+            <a class="btn btn-quiet" href="${esc(official)}" target="_blank" rel="noopener noreferrer">Official options ↗</a>
+          </div>
+          ${isTv ? `<nav class="episode-nav" id="episodeNav" aria-label="Episode navigation"></nav>` : ""}
+        </div>
+        <aside class="watch-aside">
+          <span class="kicker">Now playing${isTv ? ` · S${media.season || 1} E${media.episode || 1}` : ""}</span>
+          <h1>${esc(media.title)}</h1>
+          <p class="lede">${esc(media.overview || "No synopsis is available for this title yet.")}</p>
+          <div class="aside-facts">
+            <span><small>Released</small><b>${esc(media.year || "—")}</b></span>
+            <span><small>Rating</small><b>${esc(ratingText(media.rating))}</b></span>
+            <span><small>Runtime</small><b>${esc(runtimeOf(media.runtime) || "—")}</b></span>
+            <span><small>Type</small><b>${esc(typeLabel(media.type))}</b></span>
+          </div>
+          <div class="aside-links">
+            <a class="btn btn-ghost" href="${esc(`/title/${media.id}?type=${media.type}`)}" data-link>Full details ↗</a>
+            <a class="btn btn-ghost" href="${esc(official)}" target="_blank" rel="noopener noreferrer">Official options ↗</a>
+          </div>
+        </aside>
+      </div>
+    </div>`;
+  }
+
+  /* ---------- hero rotation ---------- */
+  function setupHero(items) {
+    clearInterval(state.hero.timer);
+    const hero = $("[data-hero]");
+    if (!hero || items.length < 2 || ui.reduce) return;
+
+    state.hero.items = items;
+    state.hero.index = 0;
+    state.hero.paused = false;
+    let layer = "a";
+
+    hero.addEventListener("pointerenter", () => { state.hero.paused = true; });
+    hero.addEventListener("pointerleave", () => { state.hero.paused = false; });
+
+    state.hero.timer = window.setInterval(() => {
+      if (state.hero.paused || document.hidden || !hero.isConnected) return;
+      const list = state.hero.items;
+      state.hero.index = (state.hero.index + 1) % list.length;
+      const item = list[state.hero.index];
+      const next = layer === "a" ? "b" : "a";
+      const nextImage = $(`[data-hero-layer="${next}"]`);
+      const activeImage = $(`[data-hero-layer="${layer}"]`);
+      const nextPoster = $(`[data-hero-poster="${next}"]`);
+      const activePoster = $(`[data-hero-poster="${layer}"]`);
+
+      hero.classList.add("is-swapping");
+      const applyPosters = () => {
+        if (!hero.isConnected) return;
+        nextImage?.classList.add("is-on");
+        activeImage?.classList.remove("is-on");
+        nextImage && nextPoster && nextPoster.closest(".hero-poster")?.classList.remove("is-off");
+        activePoster?.closest(".hero-poster")?.classList.add("is-off");
+        hero.classList.remove("is-swapping");
+      };
+
+      if (nextImage) {
+        nextImage.src = img(item.backdrop, "w1280");
+        if (nextImage.complete) applyPosters();
+        else nextImage.addEventListener("load", applyPosters, { once: true });
+      } else {
+        applyPosters();
+      }
+      if (nextPoster) nextPoster.src = img(item.poster, "w500");
+
+      const title = $("[data-hero-title]", hero);
+      const meta = $("[data-hero-meta]", hero);
+      const overview = $("[data-hero-overview]", hero);
+      const kind = $("[data-hero-kind]", hero);
+      const folio = $("[data-hero-folio]", hero);
+      const ghost = $("[data-hero-ghost]", hero);
+      const watch = $("[data-hero-watch]", hero);
+      const details = $("[data-hero-details]", hero);
+      if (title) title.textContent = item.title;
+      if (meta) meta.textContent = [item.year || "", ratingText(item.rating), typeLabel(item.type)].filter(Boolean).join(" · ");
+      if (overview) overview.textContent = item.overview || "No synopsis is available for this title yet.";
+      if (kind) kind.textContent = typeLabel(item.type);
+      if (folio) folio.textContent = `${String(state.hero.index + 1).padStart(2, "0")} / ${String(list.length).padStart(2, "0")}`;
+      if (ghost) ghost.textContent = String(state.hero.index + 1).padStart(2, "0");
+      $$("[data-hero-ticks] i", hero).forEach((tick, index) => tick.classList.toggle("is-on", index === state.hero.index));
+      if (watch) watch.href = `/watch/${item.id}?type=${item.type}`;
+      if (details) details.href = `/title/${item.id}?type=${item.type}`;
+
+      layer = next;
+    }, 9000);
+  }
+
+  /* ---------- player ---------- */
+  function teardownPlayer() {
+    state.player.timers.forEach((timer) => clearTimeout(timer));
+    state.player.timers = [];
+    if (state.player.hls) {
+      try { state.player.hls.destroy(); } catch (_) {}
+      state.player.hls = null;
+    }
+    const video = $("#videoStage");
+    if (video) {
+      try { video.pause(); video.removeAttribute("src"); video.load(); } catch (_) {}
+    }
+    state.player.frame = null;
+  }
+
+  function setStatus(text, level) {
+    const target = $("#statusText");
+    const dotEl = $("#statusDot");
+    if (target) target.textContent = text;
+    if (dotEl) {
+      dotEl.classList.toggle("is-live", level === "live");
+      dotEl.classList.toggle("is-warn", level === "warn");
+    }
+  }
+
+  function hideMask() {
+    const mask = $("#stageMask");
+    if (!mask || mask.classList.contains("is-gone")) return;
+    mask.classList.add("is-gone");
+    state.player.timers.push(setTimeout(() => mask.remove(), 600));
+  }
+
+  async function setupPlayer(media, sources) {
+    const source = sources[0];
+    if (!source) return;
+    const stage = $("#playerStage");
+    if (!stage) return;
+
+    if (source.kind === "iframe") {
+      const frame = $("#providerFrame");
+      if (!frame) return;
+      state.player.frame = frame;
+
+      let settled = false;
+      const loaded = () => {
+        settled = true;
+        hideMask();
+        setStatus("Player loaded. Press play inside the frame — Rapiflix cannot verify the provider's playback state.", "live");
+      };
+      frame.addEventListener("load", loaded, { once: true });
+
+      /* A cross-origin frame can stay blank forever; never spin indefinitely. */
+      state.player.timers.push(setTimeout(() => {
+        if (settled || !frame.isConnected) return;
+        hideMask();
+        setStatus("The provider did not finish loading. Reload the stream or use official options.", "warn");
+      }, 14000));
+      return;
+    }
+
+    const video = $("#videoStage");
+    if (!video) return;
+
+    if (source.kind === "hls") {
+      try {
+        const Hls = await providers.loadHls();
+        if (!video.isConnected) return;
+        if (Hls.isSupported()) {
+          const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+          state.player.hls = hls;
+          hls.loadSource(source.url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => { hideMask(); setStatus("Stream ready. Press play.", "live"); });
+          hls.on(Hls.Events.ERROR, (_event, data) => {
+            if (data?.fatal) setStatus("The HLS stream failed. Reload or use official options.", "warn");
+          });
+        } else {
+          video.src = source.url;
+          hideMask();
+          setStatus("HLS is not supported in this browser. Try another source.", "warn");
+        }
+      } catch (error) {
+        hideMask();
+        setStatus(error.message || "The HLS library could not be loaded.", "warn");
+      }
+      return;
+    }
+
+    video.src = source.url;
+    video.addEventListener("loadedmetadata", () => { hideMask(); setStatus("Stream ready. Press play.", "live"); }, { once: true });
+    video.addEventListener("error", () => { hideMask(); setStatus("This video file could not be played. Check the source or use official options.", "warn"); }, { once: true });
+  }
+
+  async function setupEpisodeNav(media) {
+    const nav = $("#episodeNav");
+    if (!nav) return;
+    try {
+      const episodes = await seasonEpisodes(media.id, media.season || 1);
+      if (!nav.isConnected) return;
+      const index = episodes.findIndex((episode) => episode.number === Number(media.episode || 1));
+      const previous = index > 0 ? episodes[index - 1] : null;
+      const next = index >= 0 && index < episodes.length - 1 ? episodes[index + 1] : null;
+      const link = (episode, direction) => `<a class="${direction}" href="/watch/${media.id}?type=tv&season=${media.season || 1}&episode=${episode.number}" data-link>
+        <small>${direction === "next" ? "Next episode" : "Previous episode"}</small>
+        <strong>E${String(episode.number).padStart(2, "0")} · ${esc(episode.name || "Untitled")}</strong>
+      </a>`;
+      nav.innerHTML = `${previous ? link(previous, "prev") : ""}${next ? link(next, "next") : ""}`;
+      if (!nav.innerHTML) nav.remove();
+    } catch (_) {
+      nav.remove();
+    }
+  }
+
+  async function setupSeasonBrowser(media) {
+    const select = $("#seasonSelect");
+    const container = $("#seasonEpisodes");
+    if (!select || !container) return;
+
+    const load = async () => {
+      const season = Number(select.value || 0);
+      container.innerHTML = `<div class="episode-skel">${Array.from({ length: 3 }, () => `<div class="sk sk-line" style="height:56px"></div>`).join("")}</div>`;
+      try {
+        const episodes = await seasonEpisodes(media.id, season);
+        if (!container.isConnected) return;
+        if (!episodes.length) {
+          container.innerHTML = `<p class="lede">No episode details are available for this season.</p>`;
+          return;
+        }
+        container.innerHTML = episodes.map((episode) => `<article class="episode">
+          <span class="episode-no">E${String(episode.number).padStart(2, "0")}</span>
+          <div class="episode-copy">
+            <strong>${esc(episode.name || `Episode ${episode.number}`)}</strong>
+            <p>${esc(episode.overview || "Episode synopsis is not available.")}</p>
+            <small>${[episode.airDate, episode.runtime ? `${episode.runtime} min` : ""].filter(Boolean).map(esc).join(" · ") || "Details unavailable"}</small>
+          </div>
+          <a class="episode-watch" href="/watch/${esc(media.id)}?type=tv&season=${esc(season)}&episode=${esc(episode.number)}" data-link>Watch ↗</a>
+        </article>`).join("");
+      } catch (error) {
+        if (container.isConnected) container.innerHTML = `<p class="lede">${esc(error.message || "Episodes could not be loaded.")}</p>`;
+      }
+    };
+
+    select.addEventListener("change", load);
+    await load();
+  }
+
+  /* ---------- binding ---------- */
+  function bindView(r) {
+    $$("[data-retry]").forEach((button) => button.addEventListener("click", () => {
+      state.cache.clear();
+      state.feeds = {};
+      render();
+    }));
+
+    $$("[data-open-search]").forEach((button) => button.addEventListener("click", () => ui.openSearch?.()));
+
+    $$("[data-sort]").forEach((button) => button.addEventListener("click", async () => {
+      state.sort = button.dataset.sort === "rating" ? "rating" : "popularity";
+      const page = ["movies", "series", "anime"].includes(r.page) ? r.page : "movies";
+      delete state.feeds[page];
+      await render();
+    }));
+
+    $$("[data-more]").forEach((button) => button.addEventListener("click", async () => {
+      button.disabled = true;
+      const label = button.textContent;
+      button.textContent = "Loading…";
+      try {
+        if (r.page === "new") {
+          const feed = state.feeds.new;
+          const pageNum = (feed?.page || 1) + 1;
+          const [movies, series] = await Promise.allSettled([loadNewPage("movie", pageNum), loadNewPage("tv", pageNum)]);
+          if (feed) {
+            if (movies.status === "fulfilled") feed.movies = mergeUnique(feed.movies, movies.value.items);
+            if (series.status === "fulfilled") feed.series = mergeUnique(feed.series, series.value.items);
+            feed.page = pageNum;
+            feed.total = Math.max(movies.value?.total || 1, series.value?.total || 1, 1);
+          }
+        } else {
+          await loadFeed(r.page, {
+            pageNum: (state.feeds[r.page]?.page || 1) + 1,
+            append: true,
+            genre: r.genre || "",
+            sort: state.sort
+          });
+        }
+        render();
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = label;
+        toast(error.message || "Could not load more titles.");
+      }
+    }));
+
+    $$("[data-rail]").forEach((button) => button.addEventListener("click", () => {
+      const track = $(`#rail-${CSS.escape(button.dataset.railTarget)}`);
+      if (!track) return;
+      const direction = button.dataset.rail === "next" ? 1 : -1;
+      track.scrollBy({ left: direction * Math.max(240, track.clientWidth * 0.8), behavior: ui.reduce ? "auto" : "smooth" });
+    }));
+
+    $$("[data-save]").forEach((button) => button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const id = String(button.dataset.save);
+      const adding = !state.favorites.has(id);
+      if (adding) state.favorites.add(id);
+      else state.favorites.delete(id);
+      saveFavorites();
+      $$(`[data-save="${CSS.escape(id)}"]`).forEach((element) => {
+        element.classList.toggle("is-saved", adding);
+        element.setAttribute("aria-pressed", String(adding));
+        if (element.closest(".title-copy")) element.textContent = adding ? "♥ Saved" : "♡ Save title";
+        else element.textContent = adding ? "♥" : "♡";
+      });
+      toast(adding ? "Saved to your list" : "Removed from your list");
+    }));
+
+    $$("[data-open]").forEach((element) => element.addEventListener("click", (event) => {
+      if (event.target.closest("[data-save]")) return;
+      go(`/title/${element.dataset.open}?type=${element.dataset.type || "movie"}`);
+    }));
+
+    $$("[data-retry-player]").forEach((button) => button.addEventListener("click", () => render({ keepScroll: true })));
+
+    const providerSelect = $("#providerSelect");
+    providerSelect?.addEventListener("change", () => {
+      state.providerIndex = Number(providerSelect.value) || 0;
+      render({ keepScroll: true });
+    });
+
+    if (r.page === "title" && r.media) {
+      if (r.media.type === "tv") setupSeasonBrowser(r.media);
+    }
+    if (r.page === "watch" && r.media && r.sources) {
+      const active = r.sources[r.sourceIndex] ? [r.sources[r.sourceIndex], ...r.sources.filter((_, position) => position !== r.sourceIndex)] : [];
+      setupPlayer(r.media, active);
+      if (r.media.type === "tv") setupEpisodeNav(r.media);
+    }
+  }
+
+  function mergeUnique(current, addition) {
+    const list = current || [];
+    return [...list, ...addition.filter((item) => !list.some((existing) => existing.id === item.id))];
+  }
+
+  async function loadNewPage(type, pageNum) {
+    const params = new URLSearchParams({
+      sort_by: type === "tv" ? "first_air_date.desc" : "primary_release_date.desc",
+      page: String(pageNum),
+      include_adult: "false"
+    });
+    if (type === "tv") {
+      params.set("first_air_date.gte", lastYear());
+      params.set("first_air_date.lte", today());
+    } else {
+      params.set("primary_release_date.gte", lastYear());
+      params.set("primary_release_date.lte", today());
+    }
+    const data = await api(`discover/${type}?${params.toString()}`, { ttl: 240000 });
+    return {
+      items: (data.results || []).map((item) => normalise(item, type)).filter((item) => item.poster),
+      total: Math.min(Number(data.total_pages) || 1, 500)
+    };
+  }
+
+  /* ---------- render ---------- */
+  async function render({ keepScroll = false } = {}) {
+    const token = ++renderToken;
+    const r = route();
+    state.route = r;
+    teardownPlayer();
+    clearInterval(state.hero.timer);
+    setActive(r.page);
+    document.body.dataset.page = r.page;
+    if (!keepScroll) window.scrollTo({ top: 0, behavior: "auto" });
+    if (r.page !== "search") state.sort = state.sort || "popularity";
+
+    try {
+      if (r.page === "home") {
+        if (!state.feeds.home) app.innerHTML = skeletonFor(r);
+        const feed = await loadHome();
+        if (token !== renderToken) return;
+        app.innerHTML = homeView(feed);
+        setTitle("");
+        setupHero((feed.featured || []).filter((item) => item.backdrop).slice(0, 5));
+        bindView(r);
+        return;
+      }
+
+      if (["movies", "series", "anime"].includes(r.page)) {
+        const feed = state.feeds[r.page];
+        const needsFeed = !feed || feed.genre !== (r.genre || "") || feed.sort !== state.sort;
+        if (needsFeed) app.innerHTML = skeletonFor(r);
+        if (needsFeed) await loadFeed(r.page, { genre: r.genre || "", sort: state.sort });
+        if (token !== renderToken) return;
+        app.innerHTML = listingView(r);
+        setTitle(r.page === "movies" ? (r.genre ? `${r.genre} films` : "Movies") : r.page === "series" ? "Series" : "Anime");
+        bindView(r);
+        return;
+      }
+
+      if (r.page === "new") {
+        if (!state.feeds.new) app.innerHTML = skeletonFor(r);
+        if (!state.feeds.new) {
+          const [movies, series] = await Promise.allSettled([loadNewPage("movie", 1), loadNewPage("tv", 1)]);
+          if (token !== renderToken) return;
+          if (movies.status === "rejected" && series.status === "rejected") throw movies.reason;
+          state.feeds.new = {
+            movies: movies.status === "fulfilled" ? movies.value.items : [],
+            series: series.status === "fulfilled" ? series.value.items : [],
+            page: 1,
+            total: Math.max(movies.value?.total || 1, series.value?.total || 1, 1)
+          };
+        }
+        if (token !== renderToken) return;
+        app.innerHTML = newView();
+        setTitle("New releases");
+        bindView(r);
+        return;
+      }
+
+      if (r.page === "search") {
+        app.innerHTML = skeletonFor(r);
+        const result = await searchCatalog(r.query);
+        if (token !== renderToken) return;
+        app.innerHTML = searchView(result);
+        setTitle(result.term ? `Search: ${result.term}` : "Search");
+        bindView(r);
+        return;
+      }
+
+      if (r.page === "title" || r.page === "watch") {
+        app.innerHTML = skeletonFor(r);
+        const media = await titleData(r.id, r.type);
+        if (token !== renderToken) return;
+        if (r.page === "watch") {
+          const watchMedia = { ...media, season: r.season, episode: r.episode };
+          const sources = providers.sources(state.streams, watchMedia);
+          const key = `${watchMedia.id}:${r.season}:${r.episode}`;
+          if (state.providerKey !== key) { state.providerKey = key; state.providerIndex = 0; }
+          const index = Math.min(state.providerIndex, Math.max(0, sources.length - 1));
+          app.innerHTML = watchView(watchMedia, sources, index);
+          setTitle(`Watch ${watchMedia.title}`);
+          bindView({ ...r, media: watchMedia, sources, sourceIndex: index });
+        } else {
+          app.innerHTML = titleView(media);
+          setTitle(media.title);
+          bindView({ ...r, media });
+        }
+        return;
+      }
+
+      app.innerHTML = errorState(new Error("That route does not exist."), false);
+    } catch (error) {
+      if (token !== renderToken) return;
+      app.innerHTML = errorState(error, true);
+      bindView({ ...r, media: null, sources: null });
+      setTitle("Unavailable");
+    }
+  }
+
+  /* ---------- global wiring ---------- */
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-link]");
+    if (!link) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    const url = new URL(link.href, location.href);
+    if (url.origin !== location.origin) return;
+    event.preventDefault();
+    const target = url.pathname + url.search;
+    if (target === location.pathname + location.search) return;
+    go(target);
+  });
+
+  window.addEventListener("popstate", () => render());
+
+  window.addEventListener("error", () => toast("Something went wrong on this page. Reload if it keeps happening."));
+  window.addEventListener("unhandledrejection", (event) => {
+    event.preventDefault?.();
+    toast(event.reason?.message || "A request failed. Try again.");
+  });
+
+  async function init() {
+    await loadStreams();
+    await render();
+  }
+
+  window.RapiflixApp = { go, render };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
 })();
