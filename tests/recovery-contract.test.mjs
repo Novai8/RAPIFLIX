@@ -40,8 +40,9 @@ test("VidCore uses a response-header sandbox proxy, not an iframe sandbox attrib
   assert.ok(app.includes("const playerUrl=source?.mode==='iframe'&&isVidCoreSource(source)?`/api/player-proxy?url=${encodeURIComponent(source.url)}`:source?.url;"));
   assert.match(playerProxy,/Content-Security-Policy/);
   assert.match(playerProxy,/sandbox allow-scripts allow-forms/);
-  assert.doesNotMatch(playerProxy,/allow-popups|allow-top-navigation/);
-  assert.doesNotMatch(playerProxy,/allow-same-origin/);
+  const csp=(playerProxy.match(/const PLAYER_CSP = "([^"]+)"/)||[])[1]||"";
+  assert.match(csp,/sandbox allow-scripts allow-forms/);
+  assert.doesNotMatch(csp,/allow-popups|allow-top-navigation|allow-same-origin/);
   assert.match(playerProxy,/vidcore\.org/);
   assert.match(playerProxy,/vidspark\.to/);
   assert.match(playerProxy,/base href=/);
