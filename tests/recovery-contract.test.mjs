@@ -5,8 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=f=>readFile(path.join(root,f),'utf8');
-const [html,app,routes,css,redirects,streams,tmdb,health,player,deploy]=await Promise.all(['index.html','app.js','routes.js','styles.css','_redirects','streams.json','functions/api/tmdb/[[path]].js','functions/api/health.js','player.html','scripts/deploy_player_overlay.py'].map(read));
-test('new shell exposes the app mount and loader',()=>{assert.match(html,/id="app"/);assert.match(html,/id="loader"/);assert.match(html,/loader-signal/);assert.match(html,/paletteToggle/);assert.match(html,/searchSuggestions/);assert.match(html,/styles\.css\?v=20261025-new-releases-v2/);assert.match(html,/data-build="rapiflix-new-releases-v1"/);assert.match(html,/app\.js\?v=20261111-player-popup-block-v1/)});
+const [html,app,routes,css,redirects,streams,tmdb,health,player,deploy,playerProxy,routesConfig]=await Promise.all(['index.html','app.js','routes.js','styles.css','_redirects','streams.json','functions/api/tmdb/[[path]].js','functions/api/health.js','player.html','scripts/deploy_player_overlay.py','functions/api/player-proxy.js','_routes.json'].map(read));
+test('new shell exposes the app mount and loader',()=>{assert.match(html,/id="app"/);assert.match(html,/id="loader"/);assert.match(html,/loader-signal/);assert.match(html,/paletteToggle/);assert.match(html,/searchSuggestions/);assert.match(html,/styles\.css\?v=20261025-new-releases-v2/);assert.match(html,/data-build="rapiflix-new-releases-v1"/);assert.match(html,/app\.js\?v=20261120-csp-popup-guard-v1/)});
 test('frontend has dedicated title and watch routes',()=>{assert.match(app,/p\.startsWith\('\/title\/'\)/);assert.match(app,/p\.startsWith\('\/watch\/'\)/);assert.match(app,/function titleView/);assert.match(app,/function watchView/);assert.match(app,/data-watch-episode/);assert.match(app,/season-browser/)});
 test('movie catalogue discovers the 1995–2026 range with pagination',()=>{assert.match(app,/discover\/movie\?primary_release_date\.gte=1995-01-01/);assert.match(app,/primary_release_date\.lte=2026-12-31/);assert.match(app,/data-load-more/);assert.match(app,/loadMovieRange/)});
 test('title details include finance and cast',()=>{assert.match(app,/budget/);assert.match(app,/boxOffice/);assert.match(app,/THE CAST/);assert.match(app,/cast-list/)});
@@ -35,3 +35,16 @@ test('health endpoint remains JSON',()=>{assert.match(health,/service: "rapiflix
 
 test('series catalogue uses TV metadata and offers season episode navigation',()=>{assert.match(app,/discover\/tv/);assert.match(app,/state\.seriesCatalog/);assert.match(app,/season-browser/);assert.match(app,/tv\/\$\{m\.id\}\/season\/\$\{season\}/);assert.match(app,/data-watch-episode/);assert.match(app,/season=\$\{button\.dataset\.watchSeason\}/)});
 test('library uses a responsive poster grid while home rails remain horizontal',()=>{assert.match(css,/\.listing-page \.movie-grid\{display:grid/);assert.match(css,/@media\(max-width:620px\)/);assert.match(css,/\.category-rail \.movie-grid\{display:flex/);assert.match(css,/\.scene-image\{animation:none!important/)});
+
+test("VidCore uses a response-header sandbox proxy, not an iframe sandbox attribute",()=>{
+  assert.ok(app.includes("const playerUrl=source?.mode==='iframe'&&isVidCoreSource(source)?`/api/player-proxy?url=${encodeURIComponent(source.url)}` :source?.url;"));
+  assert.match(playerProxy,/Content-Security-Policy/);
+  assert.match(playerProxy,/sandbox allow-scripts allow-forms/);
+  assert.doesNotMatch(playerProxy,/allow-popups|allow-top-navigation/);
+  assert.doesNotMatch(playerProxy,/allow-same-origin/);
+  assert.match(playerProxy,/vidcore\.org/);
+  assert.match(playerProxy,/vidspark\.to/);
+  assert.match(playerProxy,/base href=/);
+  assert.match(routesConfig,/\/api\/player-proxy/);
+  assert.doesNotMatch(app,/sandbox=/);
+});
