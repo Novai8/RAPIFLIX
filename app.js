@@ -70,12 +70,13 @@
   function brandPlayerLoader(){return `<div class="player-brand-loader" id="playerBrandLoader" role="status" aria-live="polite"><div class="player-brand-orbit"><img src="/favicon.svg" alt=""><i></i></div><strong>RAPIFLIX — Loading Stream...</strong></div>`}
   function watchView(m){
     const source=playbackSource(m);
+    const playerUrl=source?.mode==='iframe'&&isVidCoreSource(source)?`/api/player-proxy?url=${encodeURIComponent(source.url)}`:source?.url;
     const peerTubeStatus=source?.peerTube?'<div class="peer-tube-status" id="providerPlaybackStatus" role="status" aria-live="polite">Connecting to PeerTube…</div>':'';
     const playerMarkup=source?.url
       ?source.type==='hls'
         ?`<video id="video" controls playsinline poster="${esc(img(m.backdrop||m.poster,'original'))}"></video>`
         :source.mode==='iframe'
-          ?`${brandPlayerLoader()}<iframe ${source.peerTube?'data-peer-tube-player="true" ':''}src="${esc(source.url)}" title="${esc(m.title)} player" loading="eager" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>${peerTubeStatus}`
+          ?`${brandPlayerLoader()}<iframe ${source.peerTube?'data-peer-tube-player="true" ':''}src="${esc(playerUrl)}" title="${esc(m.title)} player" loading="eager" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>${peerTubeStatus}`
           :`<video id="video" controls playsinline poster="${esc(img(m.backdrop||m.poster,'original'))}" src="${esc(source.url)}"></video>`
       :`<div class="no-source"><span class="play-orb">▶</span><span class="eyebrow">OFFICIAL VIEWING ONLY</span><h1>${esc(m.title)}</h1><p>Playback is available when an authorized source is configured for this title.</p><a class="primary-button" rel="noreferrer" href="https://www.themoviedb.org/${m.type==='tv'?'tv':'movie'}/${m.id}/watch">Find official options ↗</a></div>`;
     return `<section class="watch-page"><div class="watch-top"><a href="/title/${m.id}?type=${m.type}" data-link>← Back to ${esc(m.title)}</a><span>RAPIFLIX / WATCH ROOM</span></div><div class="watch-layout"><div class="player-stage" id="playerStage">${playerMarkup}</div><aside class="watch-sidebar"><span class="eyebrow">NOW PLAYING</span><h1>${esc(m.title)}</h1><p>${esc(m.overview)}</p><div class="watch-sidebar-facts"><span><small>Year</small><b>${m.year||'—'}</b></span><span><small>Rating</small><b>★ ${m.rating?m.rating.toFixed(1):'—'}</b></span><span><small>Length</small><b>${esc(m.runtime)}</b></span></div><a class="ghost-button" href="/title/${m.id}?type=${m.type}" data-link>See full details ↗</a><a class="ghost-button" href="https://www.themoviedb.org/${m.type==='tv'?'tv':'movie'}/${m.id}/watch" target="_blank" rel="noreferrer">Official viewing options ↗</a></aside></div></section>`;
