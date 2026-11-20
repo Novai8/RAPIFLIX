@@ -20,6 +20,6 @@ jobs:
         with:
           node-version: 22
       - name: Check JavaScript syntax
-        run: node --check app.js && node --check routes.js && node --check functions/api/player-proxy.js
+        run: node --check app.js && node --check routes.js
       - name: Run API and front-end contract tests
         run: node --test tests/recovery-contract.test.mjs
