@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=f=>readFile(path.join(root,f),'utf8');
 const [html,app,routes,css,redirects,streams,tmdb,health,player,deploy]=await Promise.all(['index.html','app.js','routes.js','styles.css','_redirects','streams.json','functions/api/tmdb/[[path]].js','functions/api/health.js','player.html','scripts/deploy_player_overlay.py'].map(read));
-test('new shell exposes the app mount and loader',()=>{assert.match(html,/id="app"/);assert.match(html,/id="loader"/);assert.match(html,/loader-signal/);assert.match(html,/paletteToggle/);assert.match(html,/searchSuggestions/);assert.match(html,/styles\.css\?v=20261025-new-releases-v2/);assert.match(html,/data-build="rapiflix-new-releases-v1"/);assert.match(html,/app\.js\?v=20261120-direct-vidcore-restore-v1/)});
+test('new shell exposes the app mount and loader',()=>{assert.match(html,/id="app"/);assert.match(html,/id="loader"/);assert.match(html,/loader-signal/);assert.match(html,/paletteToggle/);assert.match(html,/searchSuggestions/);assert.match(html,/styles\.css\?v=20261120-vidcore-responsive-embed-v1/);assert.match(html,/data-build="rapiflix-new-releases-v1"/);assert.match(html,/app\.js\?v=20261120-direct-vidcore-restore-v1/)});
 test('frontend has dedicated title and watch routes',()=>{assert.match(app,/p\.startsWith\('\/title\/'\)/);assert.match(app,/p\.startsWith\('\/watch\/'\)/);assert.match(app,/function titleView/);assert.match(app,/function watchView/);assert.match(app,/data-watch-episode/);assert.match(app,/season-browser/)});
 test('movie catalogue discovers the 1995–2026 range with pagination',()=>{assert.match(app,/discover\/movie\?primary_release_date\.gte=1995-01-01/);assert.match(app,/primary_release_date\.lte=2026-12-31/);assert.match(app,/data-load-more/);assert.match(app,/loadMovieRange/)});
 test('title details include finance and cast',()=>{assert.match(app,/budget/);assert.match(app,/boxOffice/);assert.match(app,/THE CAST/);assert.match(app,/cast-list/)});
@@ -37,3 +37,10 @@ test('series catalogue uses TV metadata and offers season episode navigation',()
 test('library uses a responsive poster grid while home rails remain horizontal',()=>{assert.match(css,/\.listing-page \.movie-grid\{display:grid/);assert.match(css,/@media\(max-width:620px\)/);assert.match(css,/\.category-rail \.movie-grid\{display:flex/);assert.match(css,/\.scene-image\{animation:none!important/)});
 
 test('VidCore iframe loads the configured provider URL directly without a proxy or iframe sandbox',()=>{assert.match(app,/src="\$\{esc\(source\.url\)\}" title="\$\{esc\(m\.title\)\} player"/);assert.doesNotMatch(app,/player-proxy|sandbox=/)});
+
+
+test('VidCore player uses the documented responsive 16:9 iframe viewport',()=>{
+  assert.match(css, /\.watch-layout\{min-height:0;align-items:start\}/);
+  assert.match(css, /\.player-stage\{align-self:start;width:100%;height:auto;min-height:0;aspect-ratio:16\/9\}/);
+  assert.match(css, /\.player-stage video,\.player-stage iframe\{display:block;width:100%;height:100%;min-height:0;aspect-ratio:16\/9\}/);
+});
