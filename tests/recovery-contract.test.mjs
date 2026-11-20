@@ -37,7 +37,7 @@ test('series catalogue uses TV metadata and offers season episode navigation',()
 test('library uses a responsive poster grid while home rails remain horizontal',()=>{assert.match(css,/\.listing-page \.movie-grid\{display:grid/);assert.match(css,/@media\(max-width:620px\)/);assert.match(css,/\.category-rail \.movie-grid\{display:flex/);assert.match(css,/\.scene-image\{animation:none!important/)});
 
 test("VidCore uses a response-header sandbox proxy, not an iframe sandbox attribute",()=>{
-  assert.ok(app.includes("const playerUrl=source?.mode==='iframe'&&isVidCoreSource(source)?`/api/player-proxy?url=${encodeURIComponent(source.url)}` :source?.url;"));
+  assert.ok(app.includes("const playerUrl=source?.mode==='iframe'&&isVidCoreSource(source)?`/api/player-proxy?url=${encodeURIComponent(source.url)}`:source?.url;"));
   assert.match(playerProxy,/Content-Security-Policy/);
   assert.match(playerProxy,/sandbox allow-scripts allow-forms/);
   assert.doesNotMatch(playerProxy,/allow-popups|allow-top-navigation/);
