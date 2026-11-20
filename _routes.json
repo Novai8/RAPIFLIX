@@ -4,8 +4,7 @@
     "/api/tmdb/*",
     "/api/cinepro/*",
     "/api/health",
-    "/api/assistant-chat",
-    "/api/player-proxy"
+    "/api/assistant-chat"
   ],
   "exclude": []
 }
