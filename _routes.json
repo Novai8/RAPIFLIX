@@ -1,5 +1,11 @@
 {
   "version": 1,
-  "include": ["/api/tmdb/*", "/api/cinepro/*", "/api/health", "/api/assistant-chat"],
+  "include": [
+    "/api/tmdb/*",
+    "/api/cinepro/*",
+    "/api/health",
+    "/api/assistant-chat",
+    "/api/player-proxy"
+  ],
   "exclude": []
 }
