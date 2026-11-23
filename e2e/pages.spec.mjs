@@ -37,3 +37,13 @@ test('the site shell and design tokens are intact', async ({ page }) => {
   const palette = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--lime').trim());
   expect(palette.length).toBeGreaterThan(0);
 });
+
+test('a stalled metadata request never leaves the app empty', async ({ page }) => {
+  await page.route('**/api/tmdb/**', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+    await route.abort();
+  });
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.hero h1')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('.category-rail').first()).toBeVisible();
+});

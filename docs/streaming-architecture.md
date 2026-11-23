@@ -62,3 +62,5 @@ resolvePlayback()
   timers/listeners.
 - A failed TMDB response can never be cached as metadata and can never erase a
   previously resolved title.
+- The app shell paints from the bundled fallback catalogue before catalogue
+  requests settle, so a stalled metadata API cannot leave `#app` empty.

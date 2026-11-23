@@ -569,6 +569,29 @@
   function updateBackdrop(){const a=state.catalog[0],b=state.catalog[1];const root=document.documentElement;if(a?.backdrop)root.style.setProperty('--back-a',`url('${img(a.backdrop,'w1280')}')`);if(b?.backdrop)root.style.setProperty('--back-b',`url('${img(b.backdrop,'w1280')}')`)}
   function suggestionMarkup(items){const box=$('#searchSuggestions');if(!box)return;box.innerHTML=items.map((m,i)=>`<button class="search-suggestion" type="button" role="option" data-suggestion-index="${i}" data-suggestion-id="${m.id}" data-suggestion-type="${m.type}"><img src="${esc(img(m.poster,'w92'))}" alt=""><span><strong>${esc(m.title)}</strong><small>${m.type==='tv'?'Series':'Movie'}${m.year?` · ${m.year}`:''}</small></span><b>↗</b></button>`).join('');box.hidden=!items.length;box.querySelectorAll('[data-suggestion-id]').forEach(button=>button.addEventListener('click',()=>{const item=items[Number(button.dataset.suggestionIndex)];if(item&&!state.searchResults.some(x=>String(x.id)===String(item.id)))state.searchResults.push(item);box.hidden=true;go(`/title/${item.id}?type=${item.type}`)}));}
   async function updateSuggestions(query){const q=String(query||'').trim();const box=$('#searchSuggestions');if(!box)return;if(q.length<2){box.hidden=true;box.innerHTML='';return}const local=[...state.catalog,...fallback].filter((m,i,a)=>m.title.toLowerCase().includes(q.toLowerCase())&&a.findIndex(x=>x.id===m.id)===i).slice(0,5);suggestionMarkup(local);const data=await apiData(`search/multi?query=${encodeURIComponent(q)}&include_adult=false&page=1`);const remote=(data?.results||[]).filter(x=>x.media_type==='movie'||x.media_type==='tv').map(x=>normalize(x,x.media_type==='tv'?'tv':'movie')).filter(x=>x.poster);const merged=[...local,...remote].filter((m,i,a)=>a.findIndex(x=>x.id===m.id)===i).slice(0,6);suggestionMarkup(merged);}
-  async function init(){await loadStreams();updateBackdrop();$('#themeToggle')?.addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;localStorage.setItem('rapiflix-theme',next)});$('#menuButton')?.addEventListener('click',()=>document.querySelector('.main-nav')?.classList.toggle('open'));const search=$('#searchInput');let suggestTimer=0;search?.addEventListener('input',()=>{clearTimeout(suggestTimer);suggestTimer=setTimeout(()=>updateSuggestions(search.value),180)});search?.addEventListener('keydown',e=>{if(e.key==='Escape'){$('#searchSuggestions').hidden=true}if(e.key==='Enter'&&search.value.trim()){e.preventDefault();$('#searchSuggestions').hidden=true;go('/search?q='+encodeURIComponent(search.value.trim()))}});document.addEventListener('click',e=>{if(!e.target.closest('.search-box-wrap')){$('#searchSuggestions')?.setAttribute('hidden','')}});addEventListener('popstate',render);Promise.all([loadCollection('trending/movie/week').then(()=>{state.categories.trending=state.catalog.slice(0,8)}),loadSeriesPage(1,false),loadCategory('comedy','discover/movie?with_genres=35&sort_by=popularity.desc'),loadCategory('horror','discover/movie?with_genres=27&sort_by=popularity.desc'),loadAnimePage(1,false)]).finally(render);}
+  /*
+   * Paint the shell before waiting on catalogue requests. A slow or stalled
+   * TMDB call must never leave #app empty, and each page is re-rendered when
+   * its own catalogue data arrives.
+   */
+  async function init(){
+    $('#themeToggle')?.addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;localStorage.setItem('rapiflix-theme',next)});
+    $('#menuButton')?.addEventListener('click',()=>document.querySelector('.main-nav')?.classList.toggle('open'));
+    const search=$('#searchInput');let suggestTimer=0;
+    search?.addEventListener('input',()=>{clearTimeout(suggestTimer);suggestTimer=setTimeout(()=>updateSuggestions(search.value),180)});
+    search?.addEventListener('keydown',e=>{if(e.key==='Escape'){$('#searchSuggestions').hidden=true}if(e.key==='Enter'&&search.value.trim()){e.preventDefault();$('#searchSuggestions').hidden=true;go('/search?q='+encodeURIComponent(search.value.trim()))}});
+    document.addEventListener('click',e=>{if(!e.target.closest('.search-box-wrap')){$('#searchSuggestions')?.setAttribute('hidden','')}});
+    addEventListener('popstate',render);
+    await loadStreams();
+    updateBackdrop();
+    await render();
+    Promise.all([
+      loadCollection('trending/movie/week').then(()=>{state.categories.trending=state.catalog.slice(0,8)}),
+      loadSeriesPage(1,false),
+      loadCategory('comedy','discover/movie?with_genres=35&sort_by=popularity.desc'),
+      loadCategory('horror','discover/movie?with_genres=27&sort_by=popularity.desc'),
+      loadAnimePage(1,false)
+    ]).finally(()=>{updateBackdrop();render()});
+  }
   addEventListener('DOMContentLoaded',init);
 })();
