@@ -31,6 +31,28 @@ python3 -m http.server 8000
 
 For Cloudflare Pages Functions locally, use Wrangler with a `.dev.vars` file containing `TMDB_API_KEY` and run `npx wrangler pages dev .`.
 
+## Streaming reliability
+
+Playback is built on `player-core.js`: one provider URL builder, one error
+classifier and one loading state machine shared by the app and the tests.
+
+- Only numeric TMDB ids are accepted; IMDb ids are rejected before a player is built.
+- TV embeds require a season and episode (season `0` is allowed for specials).
+- Only `https://vidcore.org` is an approved embed origin, and a player iframe can
+  never point back at Rapiflix.
+- A loaded iframe is reported as **unverified** unless a verified playback event
+  arrives; a failed load shows a retry panel.
+- `/api/*` always answers JSON (see `functions/api/_middleware.js`).
+
+```bash
+node --test tests/player-core.test.mjs tests/backend-contract.test.mjs tests/recovery-contract.test.mjs
+cd e2e && npm install && npx playwright install chromium && npx playwright test
+```
+
+Local browser tests use deterministic TMDB fixtures in `e2e/fixtures.mjs`.
+Run the real-provider smoke check (18 titles, unmocked) with
+`RAPIFLIX_METADATA_ORIGIN=https://rapiflix.online node e2e/live-smoke.mjs`.
+
 ## Authorized playback
 
 Playback uses the authorized VidCore iframe templates in `streams.json` for movies and TV episodes. Additional sources may be added only when you are authorized to embed or stream them. Supported source types are direct video URLs, HLS (`type: "hls"`) and authorized iframe embeds (`mode: "iframe"`). Rapiflix does not inject its own advertising, trigger popup windows, or open a second tab when the user presses Play.

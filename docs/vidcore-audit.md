@@ -1,5 +1,17 @@
 # VidCore playback audit
 
+> 2026-11-23: re-audited and repaired on branch `fix/rapiflix-streaming-reliability`.
+> See `docs/streaming-architecture.md`. Confirmed findings:
+>
+> - `vidcore.org/embed/movie/…` and `/embed/tv/…` return HTTP 200 even for
+>   non-existent ids, so availability cannot be inferred from status codes.
+> - The embed page does not post `vidcore:*` messages to the parent; Rapiflix
+>   never claims verified playback for VidCore.
+> - The provider dispatches synthetic clicks from its embed page. The player
+>   iframe is now sandboxed without `allow-popups`/`allow-top-navigation`, which
+>   keeps playback working while containment holds.
+> - Embed URL construction is centralised in `player-core.js#buildEmbedUrl`.
+
 Code-level audit updated 2026-10-22.
 
 ## Playback routing findings

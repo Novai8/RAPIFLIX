@@ -1,4 +1,11 @@
 (() => {
+  // One provider URL builder, one error classifier and one loading state machine.
+  // They live in player-core.js so unit, integration and browser tests exercise
+  // the same code the watch room uses.
+  const Player=window.RapiflixPlayer;
+  const APPROVED_ORIGINS=Player.APPROVED_PROVIDER_ORIGINS.slice();
+  const isDev=(()=>{try{return new URLSearchParams(location.search).get('debug')==='1'||!!window.RAPIFLIX_DEBUG}catch(_){return false}})();
+  const diagnostics=Player.createDiagnostics({enabled:isDev});
   const ui=window.RapiflixUI||{}; const $=ui.$||((s,r=document)=>r.querySelector(s)); const app=$('#app');
   const IMG='https://image.tmdb.org/t/p/';
   const fallback=[
@@ -12,17 +19,44 @@
     {id:666277,type:'movie',title:'Past Lives',year:2023,rating:7.8,genres:['Drama','Romance'],runtime:'1h 46m',poster:'k3waqVXSnvCZWfJYNtdamTgTtTA.jpg',backdrop:'xUuHj3CgmZQ9P6L9L9h2f2z4nWc.jpg',overview:'Two childhood friends reunite in New York for one fateful week as they confront destiny, love and the choices that shape a life.',cast:['Greta Lee','Teo Yoo','John Magaro'],budget:12000000,boxOffice:42000000}
   ];
   const state={catalog:[...fallback], seriesCatalog:[], active:'home', query:'', streams:{}, cache:new Map(), favorites:new Set(JSON.parse(localStorage.getItem('rapiflix-favorites')||'[]')), categories:{}, searchResults:[], sortMode:'curated', movieRangeLoaded:false, movieRangePage:0, movieRangeTotal:1, seriesPage:0, seriesTotal:1, animePage:0, animeTotal:1, newMovies:[], newMoviesPage:0, newMoviesTotal:1, newSeries:[], newSeriesPage:0, newSeriesTotal:1};
+  let renderToken=0;
+  let activePlayer=null;
+  let apiController=null;
+  function debugLog(type,detail){try{diagnostics.log(type,detail)}catch(_){}}
   const img=(path,size='w780')=>path?(path.startsWith('http')?path:IMG+size+'/'+path):'';
   const slug=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   const money=n=>n?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n):'Not reported';
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   function toast(message){const t=$('#toast');if(!t)return;t.textContent=message;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400)}
-  async function api(path){if(state.cache.has(path))return state.cache.get(path);try{const r=await fetch('/api/tmdb/'+path);if(!r.ok)throw Error('unavailable');const data=await r.json();state.cache.set(path,data);return data}catch(_){return null}}
-  async function loadStreams(){try{state.streams=await (await fetch('/streams.json')).json()}catch(_) {state.streams={movies:{},embedProviders:[]}}
+  // Metadata cache. Only complete, valid JSON responses are cached; failures are
+  // reported distinctly so a bad request can never look like valid metadata.
+  const metaCache=new Map();
+  async function api(path,options={}){
+    const signal=options.signal;
+    if(metaCache.has(path))return {ok:true,data:metaCache.get(path)};
+    try{
+      const r=await fetch('/api/tmdb/'+path,{signal:signal||apiController?.signal,headers:{Accept:'application/json'}});
+      if(!r.ok){
+        const classified=Player.classifyStatus(r.status,r.headers);
+        debugLog('metadata_error',{path:redactPath(path),status:r.status,category:classified.category});
+        return {ok:false,status:r.status,category:classified.category,retryAfterMs:classified.retryAfterMs};
+      }
+      const data=await r.json();
+      if(!data||typeof data!=='object')return {ok:false,status:502,category:Player.ERROR_CATEGORIES.SERVER_ERROR,retryAfterMs:0};
+      metaCache.set(path,data);
+      return {ok:true,data};
+    }catch(error){
+      if(error?.name==='AbortError')return {ok:false,status:0,category:'aborted',retryAfterMs:0,aborted:true};
+      debugLog('metadata_network_error',{path:redactPath(path),name:error?.name||'Error'});
+      return {ok:false,status:0,category:Player.ERROR_CATEGORIES.NETWORK_ERROR,retryAfterMs:0};
+    }
   }
+  // Kept for catalogue helpers that only need the payload.
+  async function apiData(path){const result=await api(path);return result.ok?result.data:null}
+  function redactPath(path){return String(path||'').replace(/([?&](?:api_key|token|key)=)[^&]*/gi,'$1[redacted]').slice(0,120)}
+  async function loadStreams(){try{const r=await fetch('/streams.json',{headers:{Accept:'application/json'}});if(!r.ok)throw Error('streams_unavailable');const data=await r.json();state.streams=data&&typeof data==='object'?data:{movies:{},embedProviders:[]}}catch(error){debugLog('streams_unavailable',{name:error?.name||'Error'});state.streams={movies:{},embedProviders:[]}}}
   function isHttpsUrl(value){try{return new URL(value).protocol==='https:'}catch(_){return false}}
-  function isVidCoreSource(source){try{const host=new URL(source?.url||'').hostname.toLowerCase();return host==='vidcore.org'||host.endsWith('.vidcore.org')}catch(_){return false}}
-  function configuredSource(id){const entry=(state.streams.movies||{})[id];const candidates=Array.isArray(entry)?entry:[entry];return candidates.find(x=>x&&typeof x.url==='string'&&isHttpsUrl(x.url))||null}
+  function configuredSource(m){const entry=(state.streams.movies||{})[m?.id];const candidates=Array.isArray(entry)?entry:[entry];const configured=candidates.find(x=>x&&typeof x.url==='string'&&isHttpsUrl(x.url));if(!configured)return null;if(configured.mode==='iframe'){const guard=Player.assertPlayerFrameUrl(configured.url,APPROVED_ORIGINS);return guard.ok?{mode:'iframe',url:configured.url,provider:configured.provider||'Configured provider',origin:guard.origin}:null}return {mode:configured.mode||'video',url:configured.url,type:configured.type,provider:configured.provider||'Configured source'}}
   function peerTubeSource(m){
     const config=state.streams.peerTube;
     if(!config||config.enabled!==true||!isHttpsUrl(config.instanceUrl))return null;
@@ -38,21 +72,51 @@
       const url=new URL('/videos/embed/'+encodeURIComponent(videoId),instance.origin);
       url.searchParams.set('api','1');
       url.searchParams.set('title','0');
-      return {mode:'iframe',url:url.toString(),provider:'PeerTube',peerTube:true};
+      const guard=Player.assertPlayerFrameUrl(url.toString(),[instance.origin]);
+      if(!guard.ok)return null;
+      return {mode:'iframe',url:url.toString(),origin:guard.origin,provider:'PeerTube',peerTube:true};
     }catch(_){return null}
   }
-  function providerEmbed(m){const providers=Array.isArray(state.streams.embedProviders)?state.streams.embedProviders:[];const provider=providers.find(x=>x&&x.authorized===true&&x.mode==='iframe'&&x.provider==='VidCore');if(!provider)return null;const tv=m.type==='tv';const template=tv?provider.tvUrlTemplate:provider.movieUrlTemplate;if(typeof template!=='string'||!isHttpsUrl(template)||!isVidCoreSource({url:template}))return null;const season=Math.max(1,Number(m.season)||1);const episode=Math.max(1,Number(m.episode)||1);const url=template.replaceAll('{tmdb_id}',encodeURIComponent(String(m.id))).replaceAll('{season}',String(season)).replaceAll('{episode}',String(episode));return {mode:'iframe',url,provider:provider.label||provider.provider||'VidCore'};}
-  function playbackSource(m){const peerTube=peerTubeSource(m);if(peerTube)return peerTube;const configured=configuredSource(m.id);if(configured&&isVidCoreSource(configured))return configured;return providerEmbed(m)||configured;}
+  // The only place a VidCore embed URL may be constructed.
+  function providerEmbed(m){
+    const providers=Array.isArray(state.streams.embedProviders)?state.streams.embedProviders:[];
+    const provider=providers.find(x=>x&&x.authorized===true&&x.mode==='iframe'&&x.provider==='VidCore');
+    if(!provider)return {error:'provider_not_configured'};
+    const mediaType=m.type==='tv'?'tv':'movie';
+    const template=mediaType==='tv'?provider.tvUrlTemplate:provider.movieUrlTemplate;
+    const built=Player.buildEmbedUrl({
+      mediaType,
+      tmdbId:m.id,
+      season:mediaType==='tv'?m.season:undefined,
+      episode:mediaType==='tv'?m.episode:undefined,
+      template,
+      approvedOrigins:Array.isArray(provider.approvedOrigins)&&provider.approvedOrigins.length?provider.approvedOrigins:APPROVED_ORIGINS
+    });
+    if(!built.ok)return {error:built.code,message:built.message};
+    const guard=Player.assertPlayerFrameUrl(built.url,APPROVED_ORIGINS.concat(built.origin));
+    if(!guard.ok)return {error:guard.reason};
+    return {mode:'iframe',url:built.url,origin:built.origin,provider:provider.label||provider.provider||'VidCore'};
+  }
+  // Returns {source} or {error}. Never returns an internal Rapiflix URL.
+  function resolvePlayback(m){
+    const peerTube=peerTubeSource(m);
+    if(peerTube)return {source:peerTube};
+    const configured=configuredSource(m);
+    if(configured)return {source:configured};
+    const embedded=providerEmbed(m);
+    if(embedded.error)return {error:embedded.error,message:embedded.message};
+    return {source:embedded};
+  }
   function normalize(item,type='movie'){return {id:Number(item.id),type,title:item.title||item.name||'Untitled',releaseDate:String(item.release_date||item.first_air_date||''),year:Number(String(item.release_date||item.first_air_date||'').slice(0,4))||0,rating:Number(item.vote_average||0),genres:(item.genre_names||item.genres||[]).map(g=>typeof g==='string'?g:g.name).filter(Boolean).slice(0,3),runtime:item.runtime?`${Math.floor(item.runtime/60)}h ${item.runtime%60}m`:type==='tv'?'Series':'Runtime unavailable',poster:item.poster||item.poster_path||'',backdrop:item.backdrop||item.backdrop_path||'',overview:item.overview||'No synopsis is available yet.',cast:item.cast||[],budget:item.budget||0,boxOffice:item.revenue||0,seasons:Array.isArray(item.seasons)?item.seasons:[]}}
-  async function loadCollection(path,type='movie'){const data=await api(path);if(data?.results?.length){const remote=data.results.map(x=>normalize(x,type)).filter(x=>x.poster);state.catalog=[...remote,...fallback.filter(f=>!remote.some(x=>x.id===f.id))];return true}return false}
-  async function loadMovieRange(page=1,append=false){const data=await api(`discover/movie?primary_release_date.gte=1995-01-01&primary_release_date.lte=2026-12-31&sort_by=popularity.desc&page=${page}`);if(!data?.results?.length)return false;const remote=data.results.filter(x=>!(x.original_language==='ja'&&(x.genre_ids||[]).includes(16))).map(x=>normalize(x,'movie')).filter(x=>x.poster);state.catalog=append?[...state.catalog,...remote.filter(x=>!state.catalog.some(y=>y.id===x.id))]:remote;state.movieRangeLoaded=true;state.movieRangePage=Number(data.page||page);state.movieRangeTotal=Math.min(Number(data.total_pages||1),500);return true}
-  async function loadCategory(key,path,type='movie'){const data=await api(path);const items=(data?.results||[]).map(x=>normalize(x,type)).filter(x=>x.poster);if(items.length)state.categories[key]=items.slice(0,8);return items.length>0}
-  async function loadSeriesPage(page=1,append=false){const data=await api(`discover/tv?sort_by=popularity.desc&page=${page}&include_adult=false`);if(!data?.results?.length)return false;const items=data.results.map(x=>normalize(x,'tv')).filter(x=>x.poster);state.seriesCatalog=append?[...state.seriesCatalog,...items.filter(x=>!state.seriesCatalog.some(y=>y.id===x.id))]:items;state.seriesPage=Number(data.page||page);state.seriesTotal=Math.min(Number(data.total_pages||1),500);return true}
-  async function loadAnimePage(page=1,append=false){const data=await api(`discover/movie?with_genres=16&with_original_language=ja&sort_by=popularity.desc&page=${page}&include_adult=false`);if(!data?.results?.length)return false;const items=data.results.map(x=>normalize(x,'movie')).filter(x=>x.poster);const existing=state.categories.anime||[];state.categories.anime=append?[...existing,...items.filter(x=>!existing.some(y=>y.id===x.id))]:items;state.animePage=Number(data.page||page);state.animeTotal=Math.min(Number(data.total_pages||1),500);return true}
+  async function loadCollection(path,type='movie'){const data=await apiData(path);if(data?.results?.length){const remote=data.results.map(x=>normalize(x,type)).filter(x=>x.poster);state.catalog=[...remote,...fallback.filter(f=>!remote.some(x=>x.id===f.id))];return true}return false}
+  async function loadMovieRange(page=1,append=false){const data=await apiData(`discover/movie?primary_release_date.gte=1995-01-01&primary_release_date.lte=2026-12-31&sort_by=popularity.desc&page=${page}`);if(!data?.results?.length)return false;const remote=data.results.filter(x=>!(x.original_language==='ja'&&(x.genre_ids||[]).includes(16))).map(x=>normalize(x,'movie')).filter(x=>x.poster);state.catalog=append?[...state.catalog,...remote.filter(x=>!state.catalog.some(y=>y.id===x.id))]:remote;state.movieRangeLoaded=true;state.movieRangePage=Number(data.page||page);state.movieRangeTotal=Math.min(Number(data.total_pages||1),500);return true}
+  async function loadCategory(key,path,type='movie'){const data=await apiData(path);const items=(data?.results||[]).map(x=>normalize(x,type)).filter(x=>x.poster);if(items.length)state.categories[key]=items.slice(0,8);return items.length>0}
+  async function loadSeriesPage(page=1,append=false){const data=await apiData(`discover/tv?sort_by=popularity.desc&page=${page}&include_adult=false`);if(!data?.results?.length)return false;const items=data.results.map(x=>normalize(x,'tv')).filter(x=>x.poster);state.seriesCatalog=append?[...state.seriesCatalog,...items.filter(x=>!state.seriesCatalog.some(y=>y.id===x.id))]:items;state.seriesPage=Number(data.page||page);state.seriesTotal=Math.min(Number(data.total_pages||1),500);return true}
+  async function loadAnimePage(page=1,append=false){const data=await apiData(`discover/movie?with_genres=16&with_original_language=ja&sort_by=popularity.desc&page=${page}&include_adult=false`);if(!data?.results?.length)return false;const items=data.results.map(x=>normalize(x,'movie')).filter(x=>x.poster);const existing=state.categories.anime||[];state.categories.anime=append?[...existing,...items.filter(x=>!existing.some(y=>y.id===x.id))]:items;state.animePage=Number(data.page||page);state.animeTotal=Math.min(Number(data.total_pages||1),500);return true}
   function releaseWindow(){const end=new Date();const start=new Date(end);start.setDate(start.getDate()-365);return {from:start.toISOString().slice(0,10),to:end.toISOString().slice(0,10)}}
-  async function loadNewMoviesPage(page=1,append=false){const dates=releaseWindow();const data=await api(`discover/movie?primary_release_date.gte=${dates.from}&primary_release_date.lte=${dates.to}&sort_by=primary_release_date.desc&page=${page}&include_adult=false`);if(!data?.results)return false;const items=data.results.filter(x=>!(x.original_language==='ja'&&(x.genre_ids||[]).includes(16))).map(x=>normalize(x,'movie')).filter(x=>x.poster);const existing=append?state.newMovies:[];state.newMovies=[...existing,...items.filter(x=>!existing.some(y=>y.id===x.id))].sort((a,b)=>b.releaseDate.localeCompare(a.releaseDate));state.newMoviesPage=Number(data.page||page);state.newMoviesTotal=Math.min(Number(data.total_pages||1),500);return true}
-  async function loadNewSeriesPage(page=1,append=false){const dates=releaseWindow();const data=await api(`discover/tv?first_air_date.gte=${dates.from}&first_air_date.lte=${dates.to}&sort_by=first_air_date.desc&page=${page}&include_adult=false`);if(!data?.results)return false;const items=data.results.map(x=>normalize(x,'tv')).filter(x=>x.poster);const existing=append?state.newSeries:[];state.newSeries=[...existing,...items.filter(x=>!existing.some(y=>y.id===x.id))].sort((a,b)=>b.releaseDate.localeCompare(a.releaseDate));state.newSeriesPage=Number(data.page||page);state.newSeriesTotal=Math.min(Number(data.total_pages||1),500);return true}
-  async function searchCatalog(query){const q=String(query||'').trim();if(!q){state.searchResults=[];return []}const data=await api(`search/multi?query=${encodeURIComponent(q)}&include_adult=false&page=1`);const items=(data?.results||[]).filter(x=>x.media_type==='movie'||x.media_type==='tv').map(x=>normalize(x,x.media_type==='tv'?'tv':'movie')).filter(x=>x.poster);state.searchResults=items;return items}
+  async function loadNewMoviesPage(page=1,append=false){const dates=releaseWindow();const data=await apiData(`discover/movie?primary_release_date.gte=${dates.from}&primary_release_date.lte=${dates.to}&sort_by=primary_release_date.desc&page=${page}&include_adult=false`);if(!data?.results)return false;const items=data.results.filter(x=>!(x.original_language==='ja'&&(x.genre_ids||[]).includes(16))).map(x=>normalize(x,'movie')).filter(x=>x.poster);const existing=append?state.newMovies:[];state.newMovies=[...existing,...items.filter(x=>!existing.some(y=>y.id===x.id))].sort((a,b)=>b.releaseDate.localeCompare(a.releaseDate));state.newMoviesPage=Number(data.page||page);state.newMoviesTotal=Math.min(Number(data.total_pages||1),500);return true}
+  async function loadNewSeriesPage(page=1,append=false){const dates=releaseWindow();const data=await apiData(`discover/tv?first_air_date.gte=${dates.from}&first_air_date.lte=${dates.to}&sort_by=first_air_date.desc&page=${page}&include_adult=false`);if(!data?.results)return false;const items=data.results.map(x=>normalize(x,'tv')).filter(x=>x.poster);const existing=append?state.newSeries:[];state.newSeries=[...existing,...items.filter(x=>!existing.some(y=>y.id===x.id))].sort((a,b)=>b.releaseDate.localeCompare(a.releaseDate));state.newSeriesPage=Number(data.page||page);state.newSeriesTotal=Math.min(Number(data.total_pages||1),500);return true}
+  async function searchCatalog(query){const q=String(query||'').trim();if(!q){state.searchResults=[];return []}const data=await apiData(`search/multi?query=${encodeURIComponent(q)}&include_adult=false&page=1`);const items=(data?.results||[]).filter(x=>x.media_type==='movie'||x.media_type==='tv').map(x=>normalize(x,x.media_type==='tv'?'tv':'movie')).filter(x=>x.poster);state.searchResults=items;return items}
   function route(){const p=location.pathname.replace(/\/+$/,'')||'/';const params=new URLSearchParams(location.search);if(p.startsWith('/title/'))return {page:'title',id:p.split('/')[2],type:params.get('type')||''};if(p.startsWith('/watch/'))return {page:'watch',id:p.split('/')[2],type:params.get('type')||''};if(p==='/movies')return {page:'movies',genre:params.get('genre')||''};if(p==='/series')return {page:'series'};if(p==='/anime')return {page:'anime'};if(p==='/new'||p==='/new-releases')return {page:'new'};if(p==='/search')return {page:'search',query:params.get('q')||''};return {page:'home'}}
   function go(path){history.pushState({},'',path);render()}
   function linkHandlers(){document.querySelectorAll('[data-link]').forEach(a=>a.onclick=e=>{if(a.origin===location.origin){e.preventDefault();go(a.getAttribute('href'))}})}
@@ -64,23 +128,194 @@
   function listingView(page,genre=''){let items=genre&&state.categories[genre]?state.categories[genre]:state.catalog;if(genre==='anime')items=state.categories.anime||[];if(page==='series')items=state.seriesCatalog;if(page==='anime')items=state.categories.anime||[];items=[...items].sort((a,b)=>state.sortMode==='rating'?(b.rating-a.rating)||(b.year-a.year):0);let more=page==='movies'&&state.movieRangePage<state.movieRangeTotal?`<button class="primary-button load-more" data-load-more>Load more movies · page ${state.movieRangePage+1}</button>`:'';if(page==='series'&&state.seriesPage<state.seriesTotal)more=`<button class="primary-button load-more" data-load-more-series>Load more series · page ${state.seriesPage+1}</button>`;if(page==='anime'&&state.animePage<state.animeTotal)more=`<button class="primary-button load-more" data-load-more-anime>Load more anime movies · page ${state.animePage+1}</button>`;const heading=genre?genre.charAt(0).toUpperCase()+genre.slice(1):page==='movies'?'The feature reel':page==='series'?'TV series':'Anime movies';return `<section class="listing-page"><div class="page-heading"><span class="eyebrow">RAPIFLIX / ${page.toUpperCase()}</span><h1>${heading}</h1><p>${page==='movies'?'Big swings, quiet films, cult classics and the movies everyone keeps talking about.':page==='series'?'Browse television series, with more results available as you continue.':'Japanese animated feature films, kept in their own shelf.'}</p></div><div class="filter-row"><span>${items.length} titles in this cut</span><button class="filter-pill ${state.sortMode==='curated'?'active':''}" data-sort="curated">Curated view</button><button class="filter-pill ${state.sortMode==='rating'?'active':''}" data-sort="rating">Highest rated</button></div><div class="movie-grid">${items.map(card).join('')}</div>${more}</section>`}
   function newReleasesView(){const movieMore=state.newMoviesPage<state.newMoviesTotal?`<button class="primary-button load-more" data-load-more-new-movies>Load more new movies · page ${state.newMoviesPage+1}</button>`:'';const seriesMore=state.newSeriesPage<state.newSeriesTotal?`<button class="primary-button load-more" data-load-more-new-series>Load more new series · page ${state.newSeriesPage+1}</button>`:'';return `<section class="listing-page new-releases-page"><div class="page-heading"><span class="eyebrow">RAPIFLIX / JUST RELEASED</span><h1>New movies<br><em>&amp; series.</em></h1><p>Recently released films and newly aired series from the last 12 months, ordered by release date. Updated from the TMDB catalogue.</p></div><section class="new-release-shelf"><div class="rail-head"><div><span class="eyebrow">THE LATEST FILMS</span><strong>New movies</strong></div><span>${state.newMovies.length} loaded</span></div><div class="movie-grid">${state.newMovies.length?state.newMovies.map(card).join(''):'<p class="release-empty">No recent movie releases could be loaded. Try refreshing in a moment.</p>'}</div>${movieMore}</section><section class="new-release-shelf"><div class="rail-head"><div><span class="eyebrow">FRESH EPISODIC STORIES</span><strong>New series</strong></div><span>${state.newSeries.length} loaded</span></div><div class="movie-grid">${state.newSeries.length?state.newSeries.map(card).join(''):'<p class="release-empty">No recent series releases could be loaded. Try refreshing in a moment.</p>'}</div>${seriesMore}</section></section>`}
   function searchView(q){const items=state.searchResults||[];return `<section class="listing-page"><div class="page-heading"><span class="eyebrow">SEARCH / ${esc(q||'ALL TITLES')}</span><h1>${q?`Results for “${esc(q)}”`:'Find a new favourite.'}</h1><p>${items.length?`${items.length} titles surfaced from the movie and TV index.`:'Nothing matched yet. Try a title, genre, or year.'}</p></div><div class="filter-row"><span>${items.length} search results</span><button class="filter-pill ${state.sortMode==='curated'?'active':''}" data-sort="curated">Curated view</button><button class="filter-pill ${state.sortMode==='rating'?'active':''}" data-sort="rating">Highest rated</button></div><div class="movie-grid">${[...items].sort((a,b)=>state.sortMode==='rating'?(b.rating-a.rating)||(b.year-a.year):0).map(card).join('')}</div></section>`}
-  async function titleData(id,requestedType=''){const local=state.catalog.find(x=>String(x.id)===String(id))||state.seriesCatalog.find(x=>String(x.id)===String(id))||state.newMovies.find(x=>String(x.id)===String(id))||state.newSeries.find(x=>String(x.id)===String(id))||Object.values(state.categories).flat().find(x=>String(x.id)===String(id))||state.searchResults.find(x=>String(x.id)===String(id))||fallback.find(x=>String(x.id)===String(id));if(!local)return null;const type=requestedType==='tv'||(!requestedType&&local.type==='tv')?'tv':'movie';const detail=await api(`${type}/${id}?language=en-US`);const credits=await api(`${type}/${id}/credits?language=en-US`);const videos=await api(`${type}/${id}/videos?language=en-US`);const providers=await api(`${type}/${id}/watch/providers`);return {...local,type,...(detail?normalize({...detail,poster_path:detail.poster_path||local.poster,backdrop_path:detail.backdrop_path||local.backdrop},type):{}),seasons:detail?.seasons||local.seasons||[],cast:(credits?.cast||local.cast.map(name=>({name,character:'Cast'}))).slice(0,10),crew:(credits?.crew||[]).filter(x=>['Director','Writer','Screenplay'].includes(x.job)).slice(0,5),trailer:(videos?.results||[]).find(v=>v.site==='YouTube'&&(v.type==='Trailer'||v.type==='Teaser')),providers:providers?.results||{}}}
+  function findLocalTitle(id){
+    const match=x=>x&&String(x.id)===String(id);
+    return state.catalog.find(match)||state.seriesCatalog.find(match)||state.newMovies.find(match)||state.newSeries.find(match)||Object.values(state.categories).flat().find(match)||state.searchResults.find(match)||fallback.find(match)||null;
+  }
+  /*
+   * Resolve any TMDB title, whether or not it is in the local catalogue.
+   * This was the primary streaming bug: the old version returned null unless a
+   * title happened to be in the in-memory catalogue, so most watch rooms 404ed.
+   * Returns {title, status} where status is ok | not_found | unavailable |
+   * invalid_media_type | network.
+   */
+  async function titleData(id,requestedType=''){
+    const tmdbId=Player.normalizeTmdbId(id);
+    const local=findLocalTitle(id);
+    let type=requestedType==='tv'?'tv':requestedType==='movie'?'movie':(local?.type==='tv'?'tv':'movie');
+    if(tmdbId===null)return {title:null,status:'invalid_media_type'};
+    const detailResult=await api(`${type}/${tmdbId}?language=en-US`);
+    if(!detailResult.ok&&detailResult.status===404&&!local){
+      // A wrong type guess is recoverable: check the other media type once.
+      if(requestedType!=='movie'&&requestedType!=='tv'){
+        const other=type==='movie'?'tv':'movie';
+        const alternate=await api(`${other}/${tmdbId}?language=en-US`);
+        if(alternate.ok){type=other;return finishTitle(tmdbId,type,local,alternate.data)}
+      }
+      return {title:null,status:'not_found'};
+    }
+    if(!detailResult.ok){
+      if(detailResult.aborted)return {title:null,status:'aborted'};
+      if(local)return finishTitle(tmdbId,type,local,null,detailResult);
+      return {title:null,status:detailResult.category==='network_error'?'network':'unavailable',error:detailResult.category};
+    }
+    return finishTitle(tmdbId,type,local,detailResult.data);
+  }
+  async function finishTitle(tmdbId,type,local,detail,detailError){
+    const [credits,videos,providers]=await Promise.all([
+      api(`${type}/${tmdbId}/credits?language=en-US`),
+      api(`${type}/${tmdbId}/videos?language=en-US`),
+      api(`${type}/${tmdbId}/watch/providers`)
+    ]);
+    const creditsData=credits.ok?credits.data:null;
+    const videosData=videos.ok?videos.data:null;
+    const providersData=providers.ok?providers.data:null;
+    const base=local||{id:tmdbId,type,title:'Untitled',poster:'',backdrop:''};
+    const normalized=detail?normalize({...detail,poster_path:detail.poster_path||base.poster,backdrop_path:detail.backdrop_path||base.backdrop},type):{};
+    const localCast=Array.isArray(base.cast)?base.cast.map(name=>({name,character:'Cast'})):[];
+    return {
+      status:'ok',
+      title:{
+        ...base,
+        type,
+        ...normalized,
+        seasons:detail?.seasons||base.seasons||[],
+        cast:(creditsData?.cast?.length?creditsData.cast:localCast).slice(0,10),
+        crew:(creditsData?.crew||[]).filter(x=>['Director','Writer','Screenplay'].includes(x.job)).slice(0,5),
+        trailer:(videosData?.results||[]).find(v=>v.site==='YouTube'&&(v.type==='Trailer'||v.type==='Teaser'))||null,
+        providers:providersData?.results||{},
+        metadataError:detailError?detailError.category:null
+      }
+    };
+  }
   function titleView(m){const saved=state.favorites.has(String(m.id));const cast=m.cast||[];const seasons=(m.seasons||[]).filter(s=>Number(s.season_number)>=0);return `<section class="detail-page" style="--detail-image:url('${esc(img(m.backdrop||m.poster,'original'))}')"><div class="detail-top"><a href="/" data-link>← Back to the reel</a><span>RAPIFLIX / TITLE ROOM</span></div><div class="detail-hero"><div class="detail-poster"><img src="${esc(img(m.poster,'w780'))}" alt="${esc(m.title)} poster"></div><div class="detail-copy"><span class="eyebrow">${m.type==='tv'?'SERIES':'FEATURE'} / ${m.year||'YEAR UNKNOWN'}</span><h1>${esc(m.title)}</h1><div class="meta-row"><span>★ ${m.rating?m.rating.toFixed(1):'—'}</span><span>${esc(m.runtime)}</span><span>${esc(m.genres.join(' · '))}</span></div><p>${esc(m.overview)}</p><div class="detail-actions"><a class="primary-button" href="/watch/${m.id}?type=${m.type}" data-link>▶ Watch room</a><button class="ghost-button ${saved?'saved':''}" data-save="${m.id}">${saved?'♥ Saved':'♡ Save title'}</button>${m.trailer?`<a class="ghost-button" rel="noreferrer" href="https://www.youtube-nocookie.com/embed/${m.trailer.key}">Watch trailer ↗</a>`:''}</div></div></div><div class="detail-grid"><section class="info-panel"><span class="eyebrow">THE NUMBERS</span><h2>What shaped it.</h2><div class="fact-grid"><div><small>Budget</small><strong>${money(m.budget)}</strong></div><div><small>Box office</small><strong>${money(m.boxOffice)}</strong></div><div><small>Format</small><strong>${m.type==='tv'?'Series':'Feature film'}</strong></div><div><small>Release</small><strong>${m.year||'Not reported'}</strong></div></div></section><section class="info-panel"><span class="eyebrow">THE CAST</span><h2>Faces in the frame.</h2><div class="cast-list">${cast.map((c,i)=>`<div class="cast-row"><span>${String(i+1).padStart(2,'0')}</span><strong>${esc(c.name||c)}</strong><small>${esc(c.character||'Cast')}</small></div>`).join('')}</div></section></div>${m.type==='tv'?`<section class="season-browser"><div class="season-browser-head"><span class="eyebrow">EPISODE GUIDE</span><h2>Pick up where the story goes.</h2><p>Choose a season to load its episodes, then open the selected episode in the watch room.</p></div><label class="season-select-label" for="seasonSelect">Season<select id="seasonSelect" data-series-id="${m.id}">${seasons.map(s=>`<option value="${s.season_number}">${esc(s.name||`Season ${s.season_number}`)}${s.episode_count?` · ${s.episode_count} episodes`:''}</option>`).join('')}</select></label><div id="seasonEpisodes" class="season-episodes" aria-live="polite"><p class="season-loading">Loading episode guide…</p></div></section>`:''}<section class="watch-note"><div><span class="eyebrow">VIEWING NOTE</span><h2>One room for the story.</h2><p>Rapiflix does not insert ads. Playback is available only when an authorized source is configured; otherwise we show official viewing options instead of pretending a catalogue card is a free stream.</p></div><a class="primary-button" href="/watch/${m.id}?type=${m.type}" data-link>Open watch room ↗</a></section></section>`}
-  async function setupSeasonBrowser(m){const select=$('#seasonSelect'),container=$('#seasonEpisodes');if(!select||!container)return;const load=async()=>{const season=Number(select.value||0);container.innerHTML='<p class="season-loading">Loading episodes…</p>';const data=await api(`tv/${m.id}/season/${season}?language=en-US`);const episodes=data?.episodes||[];if(!episodes.length){container.innerHTML='<p class="season-loading">No episode details are available for this season.</p>';return}container.innerHTML=episodes.map(ep=>`<article class="episode-card"><div class="episode-number">E${String(ep.episode_number).padStart(2,'0')}</div><div class="episode-copy"><strong>${esc(ep.name||`Episode ${ep.episode_number}`)}</strong><p>${esc(ep.overview||'Episode synopsis is not available.')}</p><small>${ep.runtime?esc(String(ep.runtime)+' min'):'Runtime unavailable'}${ep.air_date?' · '+esc(ep.air_date):''}</small></div><button type="button" class="episode-watch" data-watch-season="${season}" data-watch-episode="${ep.episode_number}">Watch episode ↗</button></article>`).join('');container.querySelectorAll('[data-watch-season]').forEach(button=>button.addEventListener('click',()=>go(`/watch/${m.id}?type=tv&season=${button.dataset.watchSeason}&episode=${button.dataset.watchEpisode}`)))};select.addEventListener('change',load);if(select.options.length)await load();else container.innerHTML='<p class="season-loading">Season information is not available for this series.</p>'}
-  function brandPlayerLoader(){return `<div class="player-brand-loader" id="playerBrandLoader" role="status" aria-live="polite"><div class="player-brand-orbit"><img src="/favicon.svg" alt=""><i></i></div><strong>RAPIFLIX — Loading Stream...</strong></div>`}
-  function watchView(m){
-    const source=playbackSource(m);
+  async function setupSeasonBrowser(m){
+    const select=$('#seasonSelect'),container=$('#seasonEpisodes');
+    if(!select||!container)return;
+    let requestId=0;
+    const load=async()=>{
+      const current=++requestId;
+      const season=Player.normalizeInteger(select.value,0,999);
+      if(season===null){container.innerHTML='<p class="season-loading">This season cannot be loaded.</p>';return}
+      container.innerHTML='<p class="season-loading">Loading episodes…</p>';
+      const result=await api(`tv/${m.id}/season/${season}?language=en-US`);
+      if(current!==requestId)return;
+      const episodes=result.ok?result.data?.episodes||[]:[];
+      if(!episodes.length){
+        container.innerHTML=`<p class="season-loading">${result.ok?'No episode details are available for this season.':'The episode guide is temporarily unavailable. Try another season or refresh.'}</p>`;
+        return;
+      }
+      container.innerHTML=episodes.map(ep=>{
+        const episodeNumber=Player.normalizeInteger(ep.episode_number,1,99999);
+        if(episodeNumber===null)return '';
+        return `<article class="episode-card"><div class="episode-number">E${String(episodeNumber).padStart(2,'0')}</div><div class="episode-copy"><strong>${esc(ep.name||`Episode ${episodeNumber}`)}</strong><p>${esc(ep.overview||'Episode synopsis is not available.')}</p><small>${ep.runtime?esc(String(ep.runtime)+' min'):'Runtime unavailable'}${ep.air_date?' · '+esc(ep.air_date):''}</small></div><button type="button" class="episode-watch" data-watch-season="${season}" data-watch-episode="${episodeNumber}">Watch episode ↗</button></article>`;
+      }).join('');
+      container.querySelectorAll('[data-watch-season]').forEach(button=>button.addEventListener('click',()=>go(`/watch/${m.id}?type=tv&season=${button.dataset.watchSeason}&episode=${button.dataset.watchEpisode}`)));
+    };
+    select.addEventListener('change',load);
+    if(select.options.length)await load();
+    else container.innerHTML='<p class="season-loading">Season information is not available for this series.</p>';
+  }
+  function brandPlayerLoader(){
+    return `<div class="player-brand-loader" id="playerBrandLoader" role="status" aria-live="polite"><div class="player-brand-orbit"><img src="/favicon.svg" alt=""><i></i></div><strong id="playerLoaderLabel">Preparing the stream…</strong><span class="player-loader-hint" id="playerLoaderHint">Connecting to the authorized player</span></div>`;
+  }
+  function playerErrorPanel(m,options={}){
+    const copy=Player.describeError(options.category||Player.ERROR_CATEGORIES.NETWORK_ERROR);
+    const episodeNote=m.type==='tv'?`Season ${m.season||1}, episode ${m.episode||1} will stay selected.`:'Your selected title will stay open.';
+    return `<div class="player-state player-state-error" id="playerState" data-state="provider_error" role="alert">
+      <div class="player-state-poster" style="background-image:url('${esc(img(m.poster||m.backdrop,'w500'))}')"></div>
+      <div class="player-state-copy">
+        <span class="eyebrow">PLAYBACK UNAVAILABLE</span>
+        <h2>${esc(copy.title)}</h2>
+        <p>${esc(copy.message)} ${esc(episodeNote)}</p>
+        <div class="player-state-actions">
+          ${options.canRetry===false?'':`<button class="primary-button" type="button" data-player-retry>Try again</button>`}
+          <a class="ghost-button" href="https://www.themoviedb.org/${m.type==='tv'?'tv':'movie'}/${m.id}/watch" target="_blank" rel="noreferrer">Official viewing options ↗</a>
+        </div>
+      </div>
+    </div>`;
+  }
+  function watchView(m,resolution){
+    const {source,error}=resolution||{};
     const peerTubeStatus=source?.peerTube?'<div class="peer-tube-status" id="providerPlaybackStatus" role="status" aria-live="polite">Connecting to PeerTube…</div>':'';
     const playerMarkup=source?.url
       ?source.type==='hls'
-        ?`<video id="video" controls playsinline poster="${esc(img(m.backdrop||m.poster,'original'))}"></video>`
+        ?`${brandPlayerLoader()}<video id="video" controls playsinline poster="${esc(img(m.backdrop||m.poster,'original'))}"></video>`
         :source.mode==='iframe'
-          ?`${brandPlayerLoader()}<iframe ${source.peerTube?'data-peer-tube-player="true" ':''}src="${esc(source.url)}" title="${esc(m.title)} player" loading="eager" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>${peerTubeStatus}`
-          :`<video id="video" controls playsinline poster="${esc(img(m.backdrop||m.poster,'original'))}" src="${esc(source.url)}"></video>`
-      :`<div class="no-source"><span class="play-orb">▶</span><span class="eyebrow">OFFICIAL VIEWING ONLY</span><h1>${esc(m.title)}</h1><p>Playback is available when an authorized source is configured for this title.</p><a class="primary-button" rel="noreferrer" href="https://www.themoviedb.org/${m.type==='tv'?'tv':'movie'}/${m.id}/watch">Find official options ↗</a></div>`;
-    return `<section class="watch-page"><div class="watch-top"><a href="/title/${m.id}?type=${m.type}" data-link>← Back to ${esc(m.title)}</a><span>RAPIFLIX / WATCH ROOM</span></div><div class="watch-layout"><div class="player-stage" id="playerStage">${playerMarkup}</div><aside class="watch-sidebar"><span class="eyebrow">NOW PLAYING</span><h1>${esc(m.title)}</h1><p>${esc(m.overview)}</p><div class="watch-sidebar-facts"><span><small>Year</small><b>${m.year||'—'}</b></span><span><small>Rating</small><b>★ ${m.rating?m.rating.toFixed(1):'—'}</b></span><span><small>Length</small><b>${esc(m.runtime)}</b></span></div><a class="ghost-button" href="/title/${m.id}?type=${m.type}" data-link>See full details ↗</a><a class="ghost-button" href="https://www.themoviedb.org/${m.type==='tv'?'tv':'movie'}/${m.id}/watch" target="_blank" rel="noreferrer">Official viewing options ↗</a></aside></div></section>`;
+          ?`${brandPlayerLoader()}<iframe id="providerFrame" ${source.peerTube?'data-peer-tube-player="true" ':''}src="${esc(source.url)}" title="${esc(m.title)} player" loading="eager" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>${peerTubeStatus}`
+          :`${brandPlayerLoader()}<video id="video" controls playsinline poster="${esc(img(m.backdrop||m.poster,'original'))}" src="${esc(source.url)}"></video>`
+      :playerErrorPanel(m,{category:error==='provider_not_configured'?Player.ERROR_CATEGORIES.INVALID_REQUEST:Player.ERROR_CATEGORIES.NOT_FOUND,canRetry:false});
+    return `<section class="watch-page"><div class="watch-top"><a href="/title/${m.id}?type=${m.type}" data-link>← Back to ${esc(m.title)}</a><span>RAPIFLIX / WATCH ROOM</span></div><div class="watch-layout"><div class="player-stage" id="playerStage" data-state="${source?.url?'preparing':'unavailable'}">${playerMarkup}</div><aside class="watch-sidebar"><span class="eyebrow">NOW PLAYING</span><h1>${esc(m.title)}</h1><p>${esc(m.overview)}</p><div class="watch-sidebar-facts"><span><small>Year</small><b>${m.year||'—'}</b></span><span><small>Rating</small><b>★ ${m.rating?m.rating.toFixed(1):'—'}</b></span><span><small>Length</small><b>${esc(m.runtime)}</b></span></div><a class="ghost-button" href="/title/${m.id}?type=${m.type}" data-link>See full details ↗</a><a class="ghost-button" href="https://www.themoviedb.org/${m.type==='tv'?'tv':'movie'}/${m.id}/watch" target="_blank" rel="noreferrer">Official viewing options ↗</a></aside></div></section>`;
   }
-  async function render(){const r=route();state.active=r.page;setActive(r.page);document.body.dataset.page=r.page;if(r.page==='movies'&&!state.movieRangeLoaded)await loadMovieRange();if(r.page==='series'&&!state.seriesPage)await loadSeriesPage();if(r.page==='anime'&&!state.animePage)await loadAnimePage();if(r.page==='new'&&(!state.newMoviesPage||!state.newSeriesPage))await Promise.all([state.newMoviesPage?Promise.resolve(true):loadNewMoviesPage(),state.newSeriesPage?Promise.resolve(true):loadNewSeriesPage()]);if(r.page==='search')await searchCatalog(r.query);let html='',m=null;if(r.page==='home')html=homeView();else if(['movies','series','anime'].includes(r.page))html=listingView(r.page,r.genre);else if(r.page==='new')html=newReleasesView();else if(r.page==='search')html=searchView(r.query);else {m=await titleData(r.id,r.type);if(m&&r.page==='watch'){const params=new URLSearchParams(location.search);m.season=Number(params.get('season')||1);m.episode=Number(params.get('episode')||1)}html=m?(r.page==='title'?titleView(m):watchView(m)):`<section class="error-page"><span class="eyebrow">404 / STORY NOT FOUND</span><h1>That reel is missing.</h1><a class="primary-button" href="/" data-link>Return home</a></section>`}app.innerHTML=html;document.title=r.page==='home'?'Rapiflix — Stay for the story':`Rapiflix — ${r.page==='title'||r.page==='watch'?(html.match(/<h1>(.*?)<\/h1>/)?.[1]||'Title') : r.page}`;linkHandlers();bindCards();if(r.page==='watch'&&m)setupPlayer(m);if(r.page==='title'&&m?.type==='tv')setupSeasonBrowser(m);app.focus({preventScroll:true});updateBackdrop()}
+  function errorPage(heading,message){
+    return `<section class="error-page"><span class="eyebrow">STORY NOT AVAILABLE</span><h1>${esc(heading)}</h1><p>${esc(message)}</p><a class="primary-button" href="/" data-link>Return home</a></section>`;
+  }
+  // Shown while a title room resolves so the page never flashes empty.
+  function titleSkeleton(page,id){
+    return `<section class="detail-page title-skeleton" aria-busy="true" aria-live="polite"><div class="detail-top"><a href="/" data-link>← Back to the reel</a><span>RAPIFLIX / ${page==='watch'?'WATCH':'TITLE'} ROOM</span></div><div class="skeleton-copy"><span class="eyebrow">LOADING TMDB #${esc(String(id||'').slice(0,12))}</span><h1>Loading the room…</h1><div class="skeleton-line"></div><div class="skeleton-line short"></div>${page==='watch'?'<div class="skeleton-player" aria-hidden="true"></div>':''}</div></section>`;
+  }
+  async function render(){
+    const token=++renderToken;
+    stopActivePlayer();
+    apiController?.abort();
+    apiController=typeof AbortController==='function'?new AbortController():null;
+    const r=route();
+    state.active=r.page;setActive(r.page);document.body.dataset.page=r.page;
+    try{
+      if(r.page==='movies'&&!state.movieRangeLoaded)await loadMovieRange();
+      if(r.page==='series'&&!state.seriesPage)await loadSeriesPage();
+      if(r.page==='anime'&&!state.animePage)await loadAnimePage();
+      if(r.page==='new'&&(!state.newMoviesPage||!state.newSeriesPage))await Promise.all([state.newMoviesPage?Promise.resolve(true):loadNewMoviesPage(),state.newSeriesPage?Promise.resolve(true):loadNewSeriesPage()]);
+      if(r.page==='search')await searchCatalog(r.query);
+    }catch(_){}
+    if(token!==renderToken)return;
+    let html='',m=null,resolution=null;
+    if(r.page==='home')html=homeView();
+    else if(['movies','series','anime'].includes(r.page))html=listingView(r.page,r.genre);
+    else if(r.page==='new')html=newReleasesView();
+    else if(r.page==='search')html=searchView(r.query);
+    else{
+      if(!app.querySelector('.detail-page,.error-page')){
+        app.innerHTML=titleSkeleton(r.page,r.id);
+      }
+      const result=await titleData(r.id,r.type);
+      if(token!==renderToken)return;
+      if(result.status==='ok'&&result.title){
+        m=result.title;
+        if(r.page==='watch'){
+          const params=new URLSearchParams(location.search);
+          m.season=Player.normalizeInteger(params.get('season'),0,999);
+          m.episode=Player.normalizeInteger(params.get('episode'),1,99999);
+          if(m.type==='tv'&&(m.season===null||m.episode===null)){
+            const fallbackSeason=Player.normalizeInteger(params.get('season'),0,999)??1;
+            m.season=m.season===null?fallbackSeason:m.season;
+            m.episode=m.episode===null?1:m.episode;
+          }
+          if(m.type==='tv'&&!Number.isInteger(Number(m.season)))m.season=1;
+          if(m.type==='tv'&&!Number.isInteger(Number(m.episode)))m.episode=1;
+          resolution=resolvePlayback(m);
+        }
+        html=r.page==='title'?titleView(m):watchView(m,resolution);
+      }else if(result.status==='not_found'){
+        html=errorPage('That reel is missing.','The requested title does not exist in TMDB, or its media type is wrong. Check the link and try again.');
+      }else if(result.status==='invalid_media_type'){
+        html=errorPage('That link is not a TMDB title.','Rapiflix needs a numeric TMDB ID. IMDb IDs and other identifiers are not accepted for playback.');
+      }else if(result.status==='network'){
+        html=errorPage('The catalogue is offline.','Rapiflix could not reach the metadata service. Check your connection and refresh.');
+      }else if(result.status!=='aborted'){
+        html=errorPage('The catalogue is taking a break.','The metadata service did not return this title. Try again in a moment.');
+      }
+      if(!html)return;
+    }
+    app.innerHTML=html;
+    document.title=r.page==='home'?'Rapiflix — Stay for the story':`Rapiflix — ${r.page==='title'||r.page==='watch'?(html.match(/<h1>(.*?)<\/h1>/)?.[1]||'Title'):r.page}`;
+    linkHandlers();
+    bindCards();
+    if(r.page==='watch'&&m)setupPlayer(m,resolution);
+    if(r.page==='title'&&m?.type==='tv')setupSeasonBrowser(m);
+    app.focus({preventScroll:true});
+    updateBackdrop();
+  }
   function bindCards(){document.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('[data-save]'))return;go(`/title/${el.dataset.open}?type=${el.dataset.type||'movie'}`)}));document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const id=String(b.dataset.save);state.favorites.has(id)?state.favorites.delete(id):state.favorites.add(id);localStorage.setItem('rapiflix-favorites',JSON.stringify([...state.favorites]));toast(state.favorites.has(id)?'Saved to your list':'Removed from your list');render()}));document.querySelectorAll('[data-sort]').forEach(button=>button.addEventListener('click',()=>{state.sortMode=button.dataset.sort==='rating'?'rating':'curated';render()}));$('#app').querySelector('[data-load-more]')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;await loadMovieRange(state.movieRangePage+1,true);render()});$('#app').querySelector('[data-load-more-series]')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;await loadSeriesPage(state.seriesPage+1,true);render()});$('#app').querySelector('[data-load-more-anime]')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;await loadAnimePage(state.animePage+1,true);render()});$('#app').querySelector('[data-load-more-new-movies]')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;await loadNewMoviesPage(state.newMoviesPage+1,true);render()});$('#app').querySelector('[data-load-more-new-series]')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;await loadNewSeriesPage(state.newSeriesPage+1,true);render()})}
   function loadPeerTubeEmbedApi(){
     if(window.PeerTubePlayer)return Promise.resolve();
@@ -95,31 +330,245 @@
     });
     return window.__rapiflixPeerTubeApi;
   }
-  async function setupPlayer(m){
-    const source=playbackSource(m);
-    if(source?.type==='hls'&&window.Hls&&$('#video')){const hls=new Hls();hls.loadSource(source.url);hls.attachMedia($('#video'))}
-    const frame=$('#playerStage iframe');
-    const loader=$('#playerBrandLoader');
-    if(frame&&loader){let hidden=false;const hide=()=>{if(hidden)return;hidden=true;loader.classList.add('is-hidden');setTimeout(()=>loader.remove(),650)};frame.addEventListener('load',()=>setTimeout(hide,1500),{once:true});setTimeout(hide,5200)}
-    if(source?.peerTube&&frame){
-      const status=$('#providerPlaybackStatus');
-      const setStatus=value=>{if(status)status.textContent=value};
-      try{
-        await Promise.race([loadPeerTubeEmbedApi(),new Promise((_,reject)=>setTimeout(()=>reject(new Error('PeerTube API timeout')),12000))]);
-        const player=new window.PeerTubePlayer(frame);
-        await Promise.race([player.ready,new Promise((_,reject)=>setTimeout(()=>reject(new Error('PeerTube player timeout')),15000))]);
-        setStatus('PeerTube player connected. Press play to verify the stream.');
-        player.addEventListener('playbackStatusUpdate',event=>{
-          if(event?.playbackState==='playing')setStatus('Playback confirmed · PeerTube is streaming');
-          else if(event?.playbackState==='paused')setStatus('PeerTube connected · playback paused');
-          else if(event?.playbackState==='ended')setStatus('Playback finished');
-        });
-      }catch(error){setStatus('PeerTube could not initialize this video. Check its public status and embed permissions.')}
+  const PLAYER_LOAD_TIMEOUT_MS=20000;
+  const PLAYER_PLAYBACK_WAIT_MS=15000;
+
+  function stopActivePlayer(){
+    if(activePlayer&&typeof activePlayer.dispose==='function'){
+      try{activePlayer.dispose()}catch(_){}
+    }
+    activePlayer=null;
+  }
+
+  /*
+   * Player lifecycle. A single instance owns the timers, the message listener
+   * and the iframe. Every transition is tied to a run token from the shared
+   * state machine so a stale movie/episode can never write into a new player.
+   */
+  function setupPlayer(m,resolution){
+    stopActivePlayer();
+    const stage=$('#playerStage');
+    if(!stage)return;
+    const {source,error}=resolution||{};
+    if(!source?.url){
+      debugLog('provider_unavailable',{tmdbId:m.id,mediaType:m.type,error:error||'no_source'});
+      return;
+    }
+    if(source.mode!=='iframe'){
+      setupNativePlayer(m,source,stage);
+      return;
+    }
+    setupIframePlayer(m,source,stage);
+  }
+
+  function setupNativePlayer(m,source,stage){
+    const video=$('#video',stage);
+    const sourceType=source.type==='hls'||/\.m3u8(\?|$)/i.test(source.url)?'hls':'video';
+    const machine=Player.createPlaybackMachine({
+      timeoutMs:PLAYER_LOAD_TIMEOUT_MS,
+      playbackWaitMs:PLAYER_PLAYBACK_WAIT_MS,
+      onTransition:event=>applyPlayerState(stage,event)
+    });
+    const token=machine.begin();
+    machine.iframeLoading(token);
+    let hls=null;
+    if(video){
+      video.addEventListener('loadeddata',()=>machine.iframeLoaded(token),{once:true});
+      video.addEventListener('playing',()=>machine.play(token));
+      video.addEventListener('pause',()=>machine.pause(token));
+      video.addEventListener('ended',()=>machine.ended(token));
+      video.addEventListener('error',()=>machine.fail(token,Player.ERROR_CATEGORIES.NETWORK_ERROR,{retryable:true}),{once:true});
+      if(sourceType==='hls'&&window.Hls&&window.Hls.isSupported()){
+        hls=new window.Hls();
+        hls.loadSource(source.url);
+        hls.attachMedia(video);
+      }else if(sourceType==='hls'){
+        machine.fail(token,Player.ERROR_CATEGORIES.SERVER_ERROR,{retryable:false});
+      }
+    }
+    activePlayer={
+      dispose(){
+        machine.dispose();
+        if(hls&&typeof hls.destroy==='function')hls.destroy();
+      }
+    };
+    hideBrandLoader(stage);
+    debugLog('player_ready',{tmdbId:m.id,mediaType:m.type,season:m.season,episode:m.episode,provider:source.provider,origin:null,mode:'native'});
+  }
+
+  function setupIframePlayer(m,source,stage){
+    const frame=$('#providerFrame',stage)||$('iframe',stage);
+    if(!frame){
+      debugLog('player_frame_missing',{tmdbId:m.id});
+      return;
+    }
+    // Defence in depth: never mount an iframe that points at Rapiflix itself.
+    const guard=Player.assertPlayerFrameUrl(frame.getAttribute('src'),APPROVED_ORIGINS.concat(source.origin?[source.origin]:[]));
+    if(!guard.ok){
+      debugLog('unsafe_frame_url',{tmdbId:m.id,reason:guard.reason});
+      frame.remove();
+      stage.innerHTML=playerErrorPanel(m,{category:Player.ERROR_CATEGORIES.INVALID_REQUEST,canRetry:false});
+      return;
+    }
+    debugLog('playback_requested',{
+      tmdbId:m.id,
+      mediaType:m.type,
+      season:m.type==='tv'?m.season:null,
+      episode:m.type==='tv'?m.episode:null,
+      provider:source.provider,
+      origin:source.origin
+    });
+
+    const machine=Player.createPlaybackMachine({
+      timeoutMs:PLAYER_LOAD_TIMEOUT_MS,
+      playbackWaitMs:PLAYER_PLAYBACK_WAIT_MS,
+      onTransition:event=>{
+        applyPlayerState(stage,event);
+        if(event.next==='playing'){debugLog('first_playback_event',{tmdbId:m.id,at:Date.now()})}
+        if(event.next==='timeout'){debugLog('playback_timeout',{tmdbId:m.id,reason:event.detail?.reason,attempt:machine.attempt()})}
+        if(event.next==='provider_error'||event.next==='unavailable'){debugLog('playback_failed',{tmdbId:m.id,category:event.detail?.error})}
+      }
+    });
+    const token=machine.begin();
+    machine.iframeLoading(token);
+
+    const expectedOrigin=source.origin||(()=>{try{return new URL(source.url).origin}catch(_){return ''}})();
+    let messageListener=null;
+    let frameLoaded=false;
+
+    function onMessage(event){
+      if(!Player.isTrustedProviderMessage(event,{origin:expectedOrigin,source:frame.contentWindow}))return;
+      const eventName=Player.parseProviderEvent(event.data);
+      if(eventName==='play')machine.play(token);
+      else if(eventName==='pause')machine.pause(token);
+      else if(eventName==='ended')machine.ended(token);
+    }
+
+    if(source.peerTube){
+      connectPeerTube(frame,machine,token,m);
+    }else{
+      window.addEventListener('message',onMessage);
+      messageListener=onMessage;
+    }
+
+    frame.addEventListener('load',()=>{
+      frameLoaded=true;
+      // The provider iframe is cross-origin. A load event proves the document
+      // arrived, never that a stream is playable. The state machine waits for a
+      // verified playback event; if none arrives it reports "unverified" and
+      // leaves the working player untouched.
+      machine.iframeLoaded(token);
+    },{once:true});
+
+    const retryButton=$('[data-player-retry]',stage);
+    retryButton?.addEventListener('click',()=>{
+      const newToken=machine.retry();
+      if(newToken===null)return;
+      const iframe=$('#providerFrame',stage);
+      if(iframe){
+        const url=iframe.getAttribute('src');
+        iframe.setAttribute('src','about:blank');
+        iframe.setAttribute('src',url);
+      }
+    });
+
+    activePlayer={
+      frame,
+      origin:expectedOrigin,
+      token,
+      machine,
+      dispose(){
+        if(messageListener)window.removeEventListener('message',messageListener);
+        machine.dispose();
+      }
+    };
+    hideBrandLoader(stage);
+    if(!frameLoaded)applyPlayerState(stage,{next:'iframe_loading'});
+    debugLog('player_mounted',{tmdbId:m.id,mediaType:m.type,season:m.type==='tv'?m.season:null,episode:m.type==='tv'?m.episode:null,provider:source.provider,origin:expectedOrigin});
+  }
+
+  async function connectPeerTube(frame,machine,token,m){
+    const status=$('#providerPlaybackStatus');
+    const setStatus=value=>{if(status)status.textContent=value};
+    try{
+      await Promise.race([loadPeerTubeEmbedApi(),new Promise((_,reject)=>setTimeout(()=>reject(new Error('PeerTube API timeout')),12000))]);
+      const player=new window.PeerTubePlayer(frame);
+      await Promise.race([player.ready,new Promise((_,reject)=>setTimeout(()=>reject(new Error('PeerTube player timeout')),15000))]);
+      setStatus('PeerTube player connected.');
+      player.addEventListener('playbackStatusUpdate',event=>{
+        if(event?.playbackState==='playing'){machine.play(token);setStatus('Playback confirmed · PeerTube is streaming')}
+        else if(event?.playbackState==='paused'){machine.pause(token);setStatus('Playback paused')}
+        else if(event?.playbackState==='ended'){machine.ended(token);setStatus('Playback finished')}
+      });
+    }catch(_){
+      setStatus('PeerTube could not initialize this video. Check its public status and embed permissions.');
+      machine.fail(token,Player.ERROR_CATEGORIES.SERVER_ERROR,{retryable:true});
     }
   }
+
+  function hideBrandLoader(stage){
+    const loader=$('#playerBrandLoader',stage);
+    if(!loader)return;
+    loader.classList.add('is-hidden');
+    setTimeout(()=>loader.remove(),650);
+  }
+
+  function applyPlayerState(stage,event){
+    if(!stage||!event)return;
+    stage.dataset.state=event.next;
+    const label=$('#playerLoaderLabel',stage);
+    if(label){
+      if(event.next==='embed_loaded')label.textContent='Player ready — press play';
+      else if(event.next==='playing')label.textContent='Playing';
+      else if(event.next==='timeout')label.textContent='Stream did not start';
+    }
+    if(event.next==='playing'||event.next==='paused'||event.next==='ended'){
+      hideBrandLoader(stage);
+      removeTimeoutNote(stage);
+    }
+    if(event.next==='unverified'&&!stage.querySelector('.player-state')){
+      hideBrandLoader(stage);
+      showEmbedStatus(stage,'unverified');
+    }
+    if(event.next==='timeout'&&!stage.querySelector('.player-state')){
+      hideBrandLoader(stage);
+      showEmbedStatus(stage,'timeout');
+    }
+  }
+
+  /*
+   * VidCore does not emit postMessage events to the parent page, so Rapiflix
+   * cannot observe real playback. When the embed document has loaded we must
+   * not cover a usable player with a failure state: "unverified" is a neutral,
+   * dismissible status. Only a genuine load timeout reads as an error.
+   */
+  function showEmbedStatus(stage,kind){
+    if($('#playerTimeoutNote',stage)||$('#playerVerifiedNote',stage))return;
+    const note=document.createElement('div');
+    note.id=kind==='unverified'?'playerVerifiedNote':'playerTimeoutNote';
+    note.className=kind==='unverified'?'player-status-note':'player-timeout-note';
+    note.dataset.reason=kind;
+    note.innerHTML=kind==='unverified'
+      ? '<p><strong>Press play inside the player.</strong> The provider loaded. It does not report playback events, so Rapiflix cannot confirm the stream automatically.</p><button class="ghost-button" type="button" data-dismiss-note>Dismiss</button>'
+      : '<p><strong>The player did not load.</strong> The provider document never arrived. Try again or use official viewing options.</p><button class="ghost-button" type="button" data-dismiss-note>Dismiss</button><button class="ghost-button" type="button" data-player-retry>Try again</button>';
+    note.querySelector('[data-dismiss-note]')?.addEventListener('click',()=>note.remove());
+    note.querySelector('[data-player-retry]')?.addEventListener('click',()=>{
+      note.remove();
+      const token=activePlayer?.machine?.retry();
+      const frame=$('#providerFrame',stage);
+      if(token===null||!frame)return;
+      const url=frame.getAttribute('src');
+      if(!url)return;
+      frame.setAttribute('src','about:blank');
+      frame.setAttribute('src',url);
+    });
+    stage.appendChild(note);
+  }
+  function removeTimeoutNote(stage){$('#playerTimeoutNote',stage)?.remove();$('#playerVerifiedNote',stage)?.remove()}
+
   function updateBackdrop(){const a=state.catalog[0],b=state.catalog[1];const root=document.documentElement;if(a?.backdrop)root.style.setProperty('--back-a',`url('${img(a.backdrop,'w1280')}')`);if(b?.backdrop)root.style.setProperty('--back-b',`url('${img(b.backdrop,'w1280')}')`)}
   function suggestionMarkup(items){const box=$('#searchSuggestions');if(!box)return;box.innerHTML=items.map((m,i)=>`<button class="search-suggestion" type="button" role="option" data-suggestion-index="${i}" data-suggestion-id="${m.id}" data-suggestion-type="${m.type}"><img src="${esc(img(m.poster,'w92'))}" alt=""><span><strong>${esc(m.title)}</strong><small>${m.type==='tv'?'Series':'Movie'}${m.year?` · ${m.year}`:''}</small></span><b>↗</b></button>`).join('');box.hidden=!items.length;box.querySelectorAll('[data-suggestion-id]').forEach(button=>button.addEventListener('click',()=>{const item=items[Number(button.dataset.suggestionIndex)];if(item&&!state.searchResults.some(x=>String(x.id)===String(item.id)))state.searchResults.push(item);box.hidden=true;go(`/title/${item.id}?type=${item.type}`)}));}
-  async function updateSuggestions(query){const q=String(query||'').trim();const box=$('#searchSuggestions');if(!box)return;if(q.length<2){box.hidden=true;box.innerHTML='';return}const local=[...state.catalog,...fallback].filter((m,i,a)=>m.title.toLowerCase().includes(q.toLowerCase())&&a.findIndex(x=>x.id===m.id)===i).slice(0,5);suggestionMarkup(local);const data=await api(`search/multi?query=${encodeURIComponent(q)}&include_adult=false&page=1`);const remote=(data?.results||[]).filter(x=>x.media_type==='movie'||x.media_type==='tv').map(x=>normalize(x,x.media_type==='tv'?'tv':'movie')).filter(x=>x.poster);const merged=[...local,...remote].filter((m,i,a)=>a.findIndex(x=>x.id===m.id)===i).slice(0,6);suggestionMarkup(merged);}
+  async function updateSuggestions(query){const q=String(query||'').trim();const box=$('#searchSuggestions');if(!box)return;if(q.length<2){box.hidden=true;box.innerHTML='';return}const local=[...state.catalog,...fallback].filter((m,i,a)=>m.title.toLowerCase().includes(q.toLowerCase())&&a.findIndex(x=>x.id===m.id)===i).slice(0,5);suggestionMarkup(local);const data=await apiData(`search/multi?query=${encodeURIComponent(q)}&include_adult=false&page=1`);const remote=(data?.results||[]).filter(x=>x.media_type==='movie'||x.media_type==='tv').map(x=>normalize(x,x.media_type==='tv'?'tv':'movie')).filter(x=>x.poster);const merged=[...local,...remote].filter((m,i,a)=>a.findIndex(x=>x.id===m.id)===i).slice(0,6);suggestionMarkup(merged);}
   async function init(){await loadStreams();updateBackdrop();$('#themeToggle')?.addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;localStorage.setItem('rapiflix-theme',next)});$('#menuButton')?.addEventListener('click',()=>document.querySelector('.main-nav')?.classList.toggle('open'));const search=$('#searchInput');let suggestTimer=0;search?.addEventListener('input',()=>{clearTimeout(suggestTimer);suggestTimer=setTimeout(()=>updateSuggestions(search.value),180)});search?.addEventListener('keydown',e=>{if(e.key==='Escape'){$('#searchSuggestions').hidden=true}if(e.key==='Enter'&&search.value.trim()){e.preventDefault();$('#searchSuggestions').hidden=true;go('/search?q='+encodeURIComponent(search.value.trim()))}});document.addEventListener('click',e=>{if(!e.target.closest('.search-box-wrap')){$('#searchSuggestions')?.setAttribute('hidden','')}});addEventListener('popstate',render);Promise.all([loadCollection('trending/movie/week').then(()=>{state.categories.trending=state.catalog.slice(0,8)}),loadSeriesPage(1,false),loadCategory('comedy','discover/movie?with_genres=35&sort_by=popularity.desc'),loadCategory('horror','discover/movie?with_genres=27&sort_by=popularity.desc'),loadAnimePage(1,false)]).finally(render);}
   addEventListener('DOMContentLoaded',init);
 })();

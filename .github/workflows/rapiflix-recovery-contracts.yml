@@ -20,6 +20,21 @@ jobs:
         with:
           node-version: 22
       - name: Check JavaScript syntax
-        run: node --check app.js && node --check routes.js
+        run: node --check app.js && node --check routes.js && node --check player-core.js && node --check 'functions/api/_middleware.js'
       - name: Run API and front-end contract tests
-        run: node --test tests/recovery-contract.test.mjs
+        run: node --test tests/recovery-contract.test.mjs tests/player-core.test.mjs tests/backend-contract.test.mjs
+  browser-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        working-directory: e2e
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: Run browser regression suite
+        working-directory: e2e
+        run: npx playwright test

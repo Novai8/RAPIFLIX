@@ -94,3 +94,37 @@ html[data-theme=light]{--bg:#f4f1e9;--panel:#fffdf8;--panel-2:#ebe7dc;--text:#19
 .watch-layout{min-height:0;align-items:start}
 .player-stage{align-self:start;width:100%;height:auto;min-height:0;aspect-ratio:16/9}
 .player-stage video,.player-stage iframe{display:block;width:100%;height:100%;min-height:0;aspect-ratio:16/9}
+
+/* Streaming reliability: player states, resumable hints and error panels. */
+.player-stage{position:relative;isolation:isolate}
+.player-stage[data-state="playing"] .player-brand-loader,.player-stage[data-state="paused"] .player-brand-loader{display:none}
+.player-stage iframe{isolation:isolate}
+.player-brand-loader{flex-direction:column;gap:14px;text-align:center;transition:opacity .4s ease,visibility .4s ease}
+.player-brand-loader strong{font:600 clamp(15px,2vw,22px) 'Space Grotesk',sans-serif;letter-spacing:.12em}
+.player-loader-hint{max-width:36ch;color:var(--muted);font-size:12px;line-height:1.5}
+.player-state{position:absolute;inset:0;z-index:6;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);background:#05070d;overflow:hidden}
+.player-state-poster{background-position:center;background-size:cover;filter:saturate(.7) brightness(.55)}
+.player-state-copy{align-self:center;padding:clamp(20px,4vw,46px);background:linear-gradient(90deg,rgba(5,7,13,.2),#05070d 42%)}
+.player-state-copy h2{font:600 clamp(24px,3.4vw,40px) 'Space Grotesk',sans-serif;margin:10px 0 12px;letter-spacing:-.02em}
+.player-state-copy p{color:var(--muted);line-height:1.6;margin:0 0 18px}
+.player-state-actions{display:flex;flex-wrap:wrap;gap:10px}
+.player-resume-hint,.player-timeout-note{position:absolute;z-index:7;left:14px;right:14px;bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border:1px solid rgba(199,255,67,.24);border-radius:12px;background:rgba(5,7,13,.86);color:#dce8f2;font:500 12px 'DM Sans',sans-serif;backdrop-filter:blur(10px)}
+.player-timeout-note{top:14px;bottom:auto;border-color:rgba(255,90,31,.28);background:rgba(5,7,13,.9)}
+.player-status-note{position:absolute;z-index:7;left:14px;right:14px;bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border:1px solid rgba(199,255,67,.22);border-radius:12px;background:rgba(5,7,13,.86);color:#dce8f2;font:500 12px 'DM Sans',sans-serif;backdrop-filter:blur(10px)}
+.player-status-note p{margin:0;line-height:1.45}
+.player-status-note button{flex:0 0 auto;min-height:34px;padding:7px 12px}
+.player-resume-hint p,.player-timeout-note p{margin:0;line-height:1.45}
+.player-timeout-note{flex-wrap:wrap}
+.player-resume-hint button,.player-timeout-note button{flex:0 0 auto;min-height:34px;padding:7px 12px}
+.player-stage :is(button,a):focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+@media(max-width:620px){.player-state{grid-template-columns:1fr}.player-state-poster{position:absolute;inset:0;opacity:.35}.player-state-copy{position:relative;z-index:2;align-self:end;background:linear-gradient(0deg,#05070d 30%,rgba(5,7,13,.55) 75%,transparent)}.player-resume-hint,.player-timeout-note,.player-status-note{flex-wrap:wrap;font-size:11px}}
+@media(prefers-reduced-motion:reduce){.player-brand-loader{transition:none}}
+
+/* Title room skeleton: prevents an empty flash while TMDB resolves. */
+.title-skeleton .skeleton-copy{max-width:720px;padding:clamp(24px,6vw,80px) 0}
+.title-skeleton h1{font:600 clamp(34px,6vw,72px) 'Space Grotesk',sans-serif;letter-spacing:-.04em;margin:16px 0 26px}
+.skeleton-line{height:14px;max-width:520px;margin:14px 0;border-radius:999px;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.14),rgba(255,255,255,.06));background-size:200% 100%;animation:rapiflix-skeleton 1.6s ease-in-out infinite}
+.skeleton-line.short{max-width:320px}
+.skeleton-player{width:100%;max-width:960px;aspect-ratio:16/9;margin-top:28px;border-radius:18px;border:1px solid var(--line);background:#02040a}
+@keyframes rapiflix-skeleton{0%{background-position:120% 0}100%{background-position:-20% 0}}
+@media(prefers-reduced-motion:reduce){.skeleton-line{animation:none;background:rgba(255,255,255,.09)}}
