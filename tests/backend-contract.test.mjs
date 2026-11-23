@@ -10,6 +10,7 @@ const read = (file) => readFile(path.join(root, file), 'utf8');
 const fileUrl = (file) => pathToFileURL(path.join(root, file)).href;
 const { onRequest: tmdbOnRequest } = await import(fileUrl('functions/api/tmdb/[[path]].js'));
 const { onRequest: middleware } = await import(fileUrl('functions/api/_middleware.js'));
+const { onRequest: apiCatchAll } = await import(fileUrl('functions/api/[[path]].js'));
 
 function jsonRequest(pathname, init) {
   return new Request(`https://rapiflix.online${pathname}`, init);
@@ -147,6 +148,26 @@ test('/api middleware leaves JSON responses untouched', async () => {
   });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true });
+});
+
+test('_routes.json sends every API path through Pages Functions only', async () => {
+  const routes = JSON.parse(await read('_routes.json'));
+  assert.deepEqual(routes.include, ['/api/*']);
+  assert.deepEqual(routes.exclude, []);
+});
+
+test('/api catch-all always returns a no-store JSON 404', async () => {
+  for (const method of ['GET', 'POST', 'PUT', 'DELETE']) {
+    const response = await apiCatchAll({
+      request: jsonRequest('/api/does-not-exist', { method })
+    });
+    assert.equal(response.status, 404, `${method} must be 404`);
+    assert.equal(response.headers.get('Content-Type'), 'application/json; charset=utf-8');
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+    const body = await response.json();
+    assert.equal(body.error, 'This Rapiflix API route does not exist.');
+    assert.equal(body.path, '/api/does-not-exist');
+  }
 });
 
 test('streams.json declares exactly one approved VidCore provider', async () => {

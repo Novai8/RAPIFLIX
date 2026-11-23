@@ -47,14 +47,14 @@ export async function onRequest(context) {
     return errorResponse("Only GET requests are supported.", 405);
   }
 
-  if (!env.TMDB_API_KEY) {
-    return errorResponse("TMDB is not configured. Set TMDB_API_KEY as a Cloudflare Pages secret, or in rapiflix/.dev.vars for local development.", 503);
-  }
-
   const pathParts = Array.isArray(params.path) ? params.path : [params.path || ""];
   const path = pathParts.join("/");
   if (!ALLOWED.some((pattern) => pattern.test(path))) {
     return errorResponse("This TMDB endpoint is not available through Rapiflix.", 404);
+  }
+
+  if (!env.TMDB_API_KEY) {
+    return errorResponse("TMDB is not configured. Set TMDB_API_KEY as a Cloudflare Pages secret, or in rapiflix/.dev.vars for local development.", 503);
   }
 
   const incoming = new URL(request.url);

@@ -31,6 +31,15 @@ python3 -m http.server 8000
 
 For Cloudflare Pages Functions locally, use Wrangler with a `.dev.vars` file containing `TMDB_API_KEY` and run `npx wrangler pages dev .`.
 
+`_routes.json` opts the whole `/api/*` namespace into Pages Functions, and
+`functions/api/[[path]].js` answers any unmatched API path with a no-store JSON
+404. This keeps unknown API requests out of the SPA fallback. Verify it against
+the real Pages runtime with:
+
+```bash
+node tests/pages-routing.smoke.mjs
+```
+
 ## Streaming reliability
 
 Playback is built on `player-core.js`: one provider URL builder, one error

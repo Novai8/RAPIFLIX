@@ -38,6 +38,7 @@ resolvePlayback()
 | Provider core | `player-core.js` | URL builder, id/param validation, error classification, state machine, trusted-message checks, diagnostics |
 | App shell | `app.js` | routing, TMDB metadata, watch room rendering, player lifecycle, run tokens |
 | API guard | `functions/api/_middleware.js` | every `/api/*` path answers JSON, never the SPA |
+| API catch-all | `functions/api/[[path]].js` | unmatched `/api/*` paths return a no-store JSON 404 |
 | TMDB proxy | `functions/api/tmdb/[[path]].js` | allowlisted metadata, server-side key, safe caching |
 
 ## Provider facts verified in this audit
